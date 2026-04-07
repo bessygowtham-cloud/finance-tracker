@@ -11,6 +11,9 @@
   <link rel="manifest" href="manifest.json" />
   <title>Finance Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
@@ -854,6 +857,17 @@
 <div class="page page-pad" id="page-settings">
 
   <div class="settings-section">
+    <div class="settings-section-title">Cloud Sync</div>
+    <div class="settings-card" id="syncCard">
+      <div class="settings-row">
+        <span class="settings-icon">☁️</span>
+        <div><div class="settings-label">Cloud Sync</div><div class="settings-sub">Sign in to sync across all devices</div></div>
+        <button onclick="signInGoogle()" style="border:none;background:rgba(124,110,246,0.15);color:var(--primary);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Sign in</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
     <div class="settings-section-title">Appearance</div>
     <div class="settings-card">
       <div class="settings-row">
@@ -986,6 +1000,109 @@
 </div>
 
 <script>
+// ══════════════════ FIREBASE ══════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyAe0oarmgIoAA_wyDyrZC13QODIIc_XQ1A",
+  authDomain: "finance-tracker-fdda4.firebaseapp.com",
+  projectId: "finance-tracker-fdda4",
+  storageBucket: "finance-tracker-fdda4.firebasestorage.app",
+  messagingSenderId: "998750468892",
+  appId: "1:998750468892:web:e05a48f2ed773f874458d9"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+let currentUser        = null;
+let unsubscribeSync    = null;
+let cloudSaveTimer     = null;
+let isSyncingFromCloud = false;
+
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  renderSyncCard();
+  if (user) {
+    startCloudSync(user.uid);
+  } else {
+    if (unsubscribeSync) { unsubscribeSync(); unsubscribeSync = null; }
+  }
+});
+
+function signInGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(e => alert('Sign-in failed: ' + e.message));
+}
+function signOutGoogle() {
+  if (!confirm('Sign out? Your data stays on this device.')) return;
+  auth.signOut();
+}
+
+function startCloudSync(uid) {
+  if (unsubscribeSync) unsubscribeSync();
+  unsubscribeSync = db.collection('users').doc(uid).onSnapshot(doc => {
+    if (!doc.exists) {
+      // First sign-in — push existing local data to cloud
+      saveToCloud();
+      return;
+    }
+    isSyncingFromCloud = true;
+    const d = doc.data();
+    state.transactions = d.transactions || [];
+    state.allocations  = d.allocations  || {};
+    state.recurring    = d.recurring    || [];
+    state.accounts     = d.accounts     || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+    // Also persist locally
+    localStorage.setItem('financeState', JSON.stringify({
+      transactions: state.transactions, allocations: state.allocations,
+      recurring: state.recurring, accounts: state.accounts,
+      darkMode: state.darkMode,
+      currentMonth: state.currentMonth, currentYear: state.currentYear,
+    }));
+    // Re-render active page
+    const active = document.querySelector('.page.active');
+    if (active) {
+      if (active.id==='page-home')     renderDashboard();
+      if (active.id==='page-txns')     renderTxns();
+      if (active.id==='page-charts')   renderCharts();
+      if (active.id==='page-settings') renderSettings();
+    }
+    isSyncingFromCloud = false;
+  }, err => console.error('Sync error:', err));
+}
+
+function saveToCloud() {
+  if (!currentUser || isSyncingFromCloud) return;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(() => {
+    db.collection('users').doc(currentUser.uid).set({
+      transactions: state.transactions,
+      allocations:  state.allocations,
+      recurring:    state.recurring,
+      accounts:     state.accounts,
+    }).catch(e => console.error('Cloud save error:', e));
+  }, 600);
+}
+
+function renderSyncCard() {
+  const el = document.getElementById('syncCard');
+  if (!el) return;
+  if (currentUser) {
+    el.innerHTML = `<div class="settings-row">
+      <img src="${currentUser.photoURL||''}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid rgba(124,110,246,0.3);" onerror="this.style.display='none'" />
+      <div class="account-info">
+        <div class="account-name">${currentUser.displayName||'Signed in'}</div>
+        <div class="account-balance" style="color:#34D399;font-weight:700;">✓ Live syncing</div>
+      </div>
+      <button onclick="signOutGoogle()" style="border:none;background:rgba(248,113,113,0.15);color:#F87171;border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Sign out</button>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="settings-row">
+      <span class="settings-icon">☁️</span>
+      <div><div class="settings-label">Cloud Sync</div><div class="settings-sub">Sign in to sync across all devices</div></div>
+      <button onclick="signInGoogle()" style="border:none;background:rgba(124,110,246,0.15);color:var(--primary);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Sign in</button>
+    </div>`;
+  }
+}
+
 // ══════════════════ CONSTANTS ══════════════════
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const EXPENSE_CATS = [
@@ -1056,6 +1173,7 @@ function save() {
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
   }));
+  saveToCloud();
 }
 
 // ══════════════════ HELPERS ══════════════════
