@@ -901,6 +901,14 @@
   </div>
 
   <div class="settings-section">
+    <div class="settings-section-title">
+      Custom Categories
+      <button class="add-btn-small" onclick="openCustomCatModal()">+ Add</button>
+    </div>
+    <div class="settings-card" id="customCatList"></div>
+  </div>
+
+  <div class="settings-section">
     <div class="settings-section-title">Data</div>
     <div class="settings-card">
       <div class="settings-row" onclick="exportCSV()" style="cursor:pointer;">
@@ -953,6 +961,27 @@
       <button onclick="changeYear(1)" style="border:none;background:var(--input-bg);backdrop-filter:blur(10px);border-radius:10px;padding:7px 16px;font-size:18px;cursor:pointer;color:var(--text);border:1px solid var(--input-border);">›</button>
     </div>
     <div class="month-grid" id="monthGrid"></div>
+  </div>
+</div>
+
+<!-- CUSTOM CATEGORY MODAL -->
+<div class="modal-overlay" id="customCatModal" onclick="closeCustomCatModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Custom Category</div>
+    <div class="type-toggle" style="margin:0 0 16px;">
+      <button class="active expense" id="customCatTypeExpense" onclick="setCustomCatType('expense')">↓ Expense</button>
+      <button id="customCatTypeIncome" onclick="setCustomCatType('income')">↑ Income</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Emoji</label>
+      <input type="text" class="form-input" id="customCatEmoji" placeholder="Tap and pick an emoji e.g. 🛒" maxlength="4" style="font-size:28px;text-align:center;" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Category Name</label>
+      <input type="text" class="form-input" id="customCatName" placeholder="e.g. Groceries, Gym, Fuel..." />
+    </div>
+    <button class="btn-primary" onclick="saveCustomCat()">Add Category</button>
   </div>
 </div>
 
@@ -1050,6 +1079,7 @@ function startCloudSync(uid) {
     state.allocations  = d.allocations  || {};
     state.recurring    = d.recurring    || [];
     state.accounts     = d.accounts     || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+    state.customCats   = d.customCats   || { expense: [], income: [] };
     // Also persist locally
     localStorage.setItem('financeState', JSON.stringify({
       transactions: state.transactions, allocations: state.allocations,
@@ -1078,6 +1108,7 @@ function saveToCloud() {
       allocations:  state.allocations,
       recurring:    state.recurring,
       accounts:     state.accounts,
+      customCats:   state.customCats,
     }).catch(e => console.error('Cloud save error:', e));
   }, 600);
 }
@@ -1107,7 +1138,7 @@ function renderSyncCard() {
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const EXPENSE_CATS = [
   {id:'food',          emoji:'🍔', name:'Food'},
-  {id:'transport',     emoji:'🚗', name:'Travel'},
+  {id:'transport',     emoji:'⛽', name:'Petrol'},
   {id:'shopping',      emoji:'🛍️', name:'Shopping'},
   {id:'health',        emoji:'💊', name:'Health'},
   {id:'housing',       emoji:'🏠', name:'Housing'},
@@ -1131,12 +1162,18 @@ const DEFAULT_ACCOUNTS = [
   {id:'credit', name:'Credit Card',  emoji:'💳'},
 ];
 const CAT_COLORS = ['#7C6EF6','#F87171','#FBBF24','#34D399','#60A5FA','#F472B6','#A78BFA','#2DD4BF'];
-const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS];
+// ALL_CATS merges built-in + custom at runtime
+function getAllCats() {
+  return [...EXPENSE_CATS, ...INCOME_CATS,
+    ...(state.customCats?.expense || []),
+    ...(state.customCats?.income  || [])];
+}
 
 // ══════════════════ STATE ══════════════════
 let state = {
   transactions: [], allocations: {}, recurring: [],
   accounts: JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS)),
+  customCats: { expense: [], income: [] },
   darkMode: false,
   currentMonth: new Date().getMonth(),
   currentYear: new Date().getFullYear(),
@@ -1144,6 +1181,7 @@ let state = {
   selectedCat: null, activeAccount: 'all',
   recType: 'expense', recSelectedCat: null,
   addAccountId: 'wallet',
+  customCatType: 'expense',
 };
 
 // ══════════════════ PERSISTENCE ══════════════════
@@ -1157,6 +1195,7 @@ function load() {
     state.currentYear  = p.currentYear  ?? new Date().getFullYear();
     state.recurring    = p.recurring    || [];
     state.accounts     = p.accounts     || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+    state.customCats   = p.customCats   || { expense: [], income: [] };
     state.darkMode     = p.darkMode     || false;
   }
   if (Object.keys(state.allocations).length === 0)
@@ -1170,6 +1209,7 @@ function save() {
   localStorage.setItem('financeState', JSON.stringify({
     transactions: state.transactions, allocations: state.allocations,
     recurring: state.recurring, accounts: state.accounts,
+    customCats: state.customCats,
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
   }));
@@ -1341,7 +1381,7 @@ function renderDashboard() {
 function setActiveAccount(id) { state.activeAccount=id; renderDashboard(); }
 
 function txnHTML(t) {
-  const cat = ALL_CATS.find(c=>c.id===t.category)||{emoji:'💰',name:t.category};
+  const cat = getAllCats().find(c=>c.id===t.category)||{emoji:'💰',name:t.category};
   const acc = state.accounts.find(a=>a.id===t.account);
   const sign = t.type==='income' ? '+' : '-';
   const dateStr = new Date(t.date).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
@@ -1381,7 +1421,9 @@ function setType(type) {
   renderCatGrid();
 }
 function renderCatGrid() {
-  const cats = state.addType==='expense'?EXPENSE_CATS:INCOME_CATS;
+  const builtIn = state.addType==='expense'?EXPENSE_CATS:INCOME_CATS;
+  const custom  = (state.customCats?.[state.addType]||[]);
+  const cats    = [...builtIn, ...custom];
   document.getElementById('catGrid').innerHTML = cats.map(c=>
     `<button class="cat-btn ${state.selectedCat===c.id?'selected':''}" onclick="selectCat('${c.id}')">
       <span class="cat-emoji">${c.emoji}</span><span class="cat-name">${c.name}</span>
@@ -1428,7 +1470,7 @@ function renderTxns() {
   const search = (document.getElementById('txnSearch')?.value||'').toLowerCase().trim();
   let filtered = state.txnFilter!=='all' ? txns.filter(t=>t.type===state.txnFilter) : txns;
   if (search) filtered = filtered.filter(t=>{
-    const cat=ALL_CATS.find(c=>c.id===t.category);
+    const cat=getAllCats().find(c=>c.id===t.category);
     return (t.note&&t.note.toLowerCase().includes(search))||(cat&&cat.name.toLowerCase().includes(search));
   });
   filtered.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -1461,7 +1503,7 @@ function renderCharts() {
     document.getElementById('pieLegend').innerHTML='<div class="no-data">No expenses this month</div>';
   } else {
     pieEl.style.display='';
-    const labels=entries.map(([id])=>{const c=ALL_CATS.find(x=>x.id===id);return c?`${c.emoji} ${c.name}`:id;});
+    const labels=entries.map(([id])=>{const c=getAllCats().find(x=>x.id===id);return c?`${c.emoji} ${c.name}`:id;});
     const data=entries.map(([,v])=>v);
     const colors=entries.map((_,i)=>CAT_COLORS[i%CAT_COLORS.length]);
     const total=data.reduce((a,b)=>a+b,0);
@@ -1473,7 +1515,7 @@ function renderCharts() {
         cutout:'68%'}
     });
     document.getElementById('pieLegend').innerHTML=entries.map(([id,val],i)=>{
-      const c=ALL_CATS.find(x=>x.id===id);
+      const c=getAllCats().find(x=>x.id===id);
       const pct=total>0?((val/total)*100).toFixed(0):0;
       return `<div class="legend-item"><div class="legend-dot" style="background:${colors[i]}"></div>${c?c.name:id}: ${pct}%</div>`;
     }).join('');
@@ -1519,6 +1561,7 @@ function renderSettings() {
   }).join('');
   renderAllocEdit();
   renderRecurringList();
+  renderCustomCatList();
 }
 function renderAllocEdit() {
   document.getElementById('allocEditForm').innerHTML =
@@ -1538,7 +1581,7 @@ function renderRecurringList() {
   const el=document.getElementById('recurringList');
   if(!state.recurring.length){el.innerHTML='<div class="empty-inner">No recurring transactions.<br>Tap <b>+ Add</b> to create one.</div>';return;}
   el.innerHTML=state.recurring.map(r=>{
-    const cat=ALL_CATS.find(c=>c.id===r.category)||{emoji:'💰',name:r.category};
+    const cat=getAllCats().find(c=>c.id===r.category)||{emoji:'💰',name:r.category};
     const sign=r.type==='income'?'+':'-';
     return `<div class="recurring-item">
       <div class="txn-icon ${r.type}-icon">${cat.emoji}</div>
@@ -1570,7 +1613,9 @@ function setRecType(type) {
   renderRecCatGrid();
 }
 function renderRecCatGrid() {
-  const cats=state.recType==='expense'?EXPENSE_CATS:INCOME_CATS;
+  const builtIn = state.recType==='expense'?EXPENSE_CATS:INCOME_CATS;
+  const custom  = (state.customCats?.[state.recType]||[]);
+  const cats    = [...builtIn, ...custom];
   document.getElementById('recCatGrid').innerHTML=cats.map(c=>
     `<button class="cat-btn ${state.recSelectedCat===c.id?'selected':''}" onclick="selectRecCat('${c.id}')">
       <span class="cat-emoji">${c.emoji}</span><span class="cat-name">${c.name}</span>
@@ -1614,7 +1659,7 @@ function applyAllRecurring() {
 function exportCSV() {
   const rows=[['Date','Type','Category','Note','Amount (₹)','Account']];
   [...state.transactions].sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(t=>{
-    const cat=ALL_CATS.find(c=>c.id===t.category);
+    const cat=getAllCats().find(c=>c.id===t.category);
     const acc=state.accounts.find(a=>a.id===t.account);
     rows.push([t.date,t.type,cat?cat.name:t.category,t.note||'',t.type==='expense'?-t.amount:t.amount,acc?acc.name:(t.account||'')]);
   });
@@ -1624,6 +1669,64 @@ function exportCSV() {
   const a=document.createElement('a');
   a.href=url; a.download=`finance-${state.currentYear}-${String(state.currentMonth+1).padStart(2,'0')}.csv`;
   a.click(); URL.revokeObjectURL(url);
+}
+
+// ══════════════════ CUSTOM CATEGORIES ══════════════════
+function openCustomCatModal() {
+  state.customCatType = 'expense';
+  document.getElementById('customCatTypeExpense').classList.add('active','expense');
+  document.getElementById('customCatTypeIncome').classList.remove('active','income');
+  document.getElementById('customCatEmoji').value = '';
+  document.getElementById('customCatName').value  = '';
+  document.getElementById('customCatModal').classList.add('open');
+}
+function closeCustomCatModal(e) {
+  if (!e || e.target === document.getElementById('customCatModal'))
+    document.getElementById('customCatModal').classList.remove('open');
+}
+function setCustomCatType(type) {
+  state.customCatType = type;
+  document.getElementById('customCatTypeExpense').classList.toggle('active',   type==='expense');
+  document.getElementById('customCatTypeExpense').classList.toggle('expense',  type==='expense');
+  document.getElementById('customCatTypeIncome').classList.toggle('active',    type==='income');
+  document.getElementById('customCatTypeIncome').classList.toggle('income',    type==='income');
+}
+function saveCustomCat() {
+  const emoji = document.getElementById('customCatEmoji').value.trim() || '🏷️';
+  const name  = document.getElementById('customCatName').value.trim();
+  if (!name) return alert('Please enter a category name.');
+  const id = 'custom_' + Date.now();
+  state.customCats[state.customCatType].push({ id, emoji, name });
+  save();
+  document.getElementById('customCatModal').classList.remove('open');
+  renderCustomCatList();
+}
+function deleteCustomCat(type, id) {
+  if (!confirm('Delete this category?')) return;
+  state.customCats[type] = state.customCats[type].filter(c => c.id !== id);
+  save();
+  renderCustomCatList();
+}
+function renderCustomCatList() {
+  const el = document.getElementById('customCatList');
+  if (!el) return;
+  const all = [
+    ...state.customCats.expense.map(c=>({...c,type:'expense'})),
+    ...state.customCats.income.map(c=>({...c,type:'income'})),
+  ];
+  if (!all.length) {
+    el.innerHTML = '<div class="empty-inner" style="padding:12px 0;font-size:13px;color:var(--text-secondary)">No custom categories yet.</div>';
+    return;
+  }
+  el.innerHTML = all.map(c=>`
+    <div class="account-item">
+      <div class="account-icon">${c.emoji}</div>
+      <div class="account-info">
+        <div class="account-name">${c.name}</div>
+        <div class="account-balance" style="color:${c.type==='income'?'#10b981':'#ef4444'}">${c.type==='expense'?'↓ Expense':'↑ Income'}</div>
+      </div>
+      <button onclick="deleteCustomCat('${c.type}','${c.id}')" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:4px 8px;">✕</button>
+    </div>`).join('');
 }
 
 // ══════════════════ PWA ══════════════════
