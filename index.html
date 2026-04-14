@@ -109,6 +109,41 @@
       border-bottom-color: rgba(255,255,255,0.1);
     }
     .top-nav h1 { font-size: 20px; font-weight: 700; letter-spacing: -.2px; }
+    .settings-header-controls {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .settings-header-controls.visible { display: flex; }
+    .settings-header-btn {
+      background: rgba(255,255,255,0.22);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 99px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 5px 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .settings-header-btn:active { opacity: 0.8; }
+    .settings-header-toggle {
+      background: rgba(255,255,255,0.22);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 99px;
+      padding: 5px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
     .month-pill {
       background: rgba(255,255,255,0.22);
       backdrop-filter: blur(10px);
@@ -828,6 +863,16 @@
 <div class="top-nav">
   <h1 id="pageTitle">Dashboard</h1>
   <button class="month-pill" onclick="openMonthPicker()" id="monthPill">Apr 2026</button>
+  <div class="settings-header-controls" id="settingsHeaderControls">
+    <button class="settings-header-btn" id="syncHeaderBtn" onclick="signInGoogle()">☁️ Sign in</button>
+    <div class="settings-header-toggle">
+      🌙
+      <label class="toggle-switch" style="margin:0;">
+        <input type="checkbox" id="darkModeToggleHeader" onchange="toggleDarkMode()" />
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════ DASHBOARD ══════════ -->
@@ -1048,30 +1093,6 @@
 <!-- ══════════ SETTINGS ══════════ -->
 <div class="page page-pad" id="page-settings">
 
-  <div class="settings-section">
-    <div class="settings-section-title">Cloud Sync</div>
-    <div class="settings-card" id="syncCard">
-      <div class="settings-row">
-        <span class="settings-icon">☁️</span>
-        <div><div class="settings-label">Cloud Sync</div><div class="settings-sub">Sign in to sync across all devices</div></div>
-        <button onclick="signInGoogle()" style="border:none;background:rgba(124,110,246,0.15);color:var(--primary);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Sign in</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="settings-section">
-    <div class="settings-section-title">Appearance</div>
-    <div class="settings-card">
-      <div class="settings-row">
-        <span class="settings-icon">🌙</span>
-        <div class="settings-label">Dark Mode</div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()" />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-  </div>
 
   <div class="settings-section">
     <div class="settings-section-title">Accounts</div>
@@ -1436,23 +1457,16 @@ function saveToCloud() {
 }
 
 function renderSyncCard() {
-  const el = document.getElementById('syncCard');
-  if (!el) return;
+  const btn = document.getElementById('syncHeaderBtn');
+  if (!btn) return;
   if (currentUser) {
-    el.innerHTML = `<div class="settings-row">
-      <img src="${currentUser.photoURL||''}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid rgba(124,110,246,0.3);" onerror="this.style.display='none'" />
-      <div class="account-info">
-        <div class="account-name">${currentUser.displayName||'Signed in'}</div>
-        <div class="account-balance" style="color:#34D399;font-weight:700;">✓ Live syncing</div>
-      </div>
-      <button onclick="signOutGoogle()" style="border:none;background:rgba(248,113,113,0.15);color:#F87171;border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Sign out</button>
-    </div>`;
+    btn.innerHTML = `✓ ${currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Synced'}`;
+    btn.onclick = signOutGoogle;
+    btn.style.background = 'rgba(52,211,153,0.25)';
   } else {
-    el.innerHTML = `<div class="settings-row">
-      <span class="settings-icon">☁️</span>
-      <div><div class="settings-label">Cloud Sync</div><div class="settings-sub">Sign in to sync across all devices</div></div>
-      <button onclick="signInGoogle()" style="border:none;background:rgba(124,110,246,0.15);color:var(--primary);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Sign in</button>
-    </div>`;
+    btn.innerHTML = '☁️ Sign in';
+    btn.onclick = signInGoogle;
+    btn.style.background = '';
   }
 }
 
@@ -1531,7 +1545,8 @@ function load() {
     EXPENSE_CATS.forEach(c => { state.allocations[c.id] = 0; });
   if (state.darkMode) {
     document.body.classList.add('dark');
-    document.getElementById('darkModeToggle').checked = true;
+    const hdr = document.getElementById('darkModeToggleHeader');
+    if (hdr) hdr.checked = true;
   }
 }
 function save() {
@@ -1574,6 +1589,8 @@ function navigate(page) {
   if (nb) nb.classList.add('active');
   document.getElementById('pageTitle').textContent = PAGE_TITLES[page]||page;
   document.getElementById('monthPill').style.display = ['home','txns','charts'].includes(page)?'':'none';
+  const shc = document.getElementById('settingsHeaderControls');
+  if (page === 'settings') shc.classList.add('visible'); else shc.classList.remove('visible');
   // Close any open dropdown
   closeAccountDropdown();
   if (page==='home')     renderDashboard();
@@ -1610,7 +1627,8 @@ function updateMonthPill() {
 
 // ══════════════════ DARK MODE ══════════════════
 function toggleDarkMode() {
-  state.darkMode = document.getElementById('darkModeToggle').checked;
+  const hdr = document.getElementById('darkModeToggleHeader');
+  state.darkMode = hdr ? hdr.checked : state.darkMode;
   document.body.classList.toggle('dark', state.darkMode);
   save();
   if (document.getElementById('page-charts').classList.contains('active')) renderCharts();

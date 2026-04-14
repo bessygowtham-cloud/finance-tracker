@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(node -e \"let d=''; process.stdin.on('data',c=>d+=c); process.stdin.on('end',()=>{ const o=JSON.parse(d); process.stdout.write((o.tool_input||{}).file_path||''); })\"); [[ \"$FILE\" == *finance-tracker* ]] && cd \"C:/Users/Gowtham/Desktop/finance-tracker\" && git add -A && git commit -m \"auto: update $(basename \\\"$FILE\\\")\" && git push origin main 2>/dev/null || true",
+            "statusMessage": "Pushing changes to GitHub..."
+          }
+        ]
+      }
+    ]
+  }
+}
