@@ -742,6 +742,28 @@
     .goal-color-dot { width:30px; height:30px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:border-color .2s; }
     .goal-color-dot.selected { border-color:#fff; box-shadow:0 0 0 2px var(--primary); }
 
+    /* ── SUB CATEGORIES & FAMILY MEMBERS ── */
+    .sub-chips-wrap { display:flex; gap:6px; flex-wrap:wrap; padding:4px 0; }
+    .sub-chip {
+      background:var(--input-bg); border:1.5px solid var(--input-border);
+      border-radius:99px; padding:7px 16px; font-size:12px; font-weight:600;
+      cursor:pointer; color:var(--muted); transition:all .2s; white-space:nowrap;
+      backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    }
+    .sub-chip.selected { background:rgba(124,110,246,0.85); border-color:rgba(255,255,255,0.3); color:#fff; box-shadow:0 3px 10px rgba(124,110,246,0.3); }
+    .sub-chip.chip-add { background:rgba(124,110,246,0.08); border:1.5px dashed rgba(124,110,246,0.4); color:var(--primary); }
+    .member-chip {
+      background:var(--input-bg); border:1.5px solid var(--input-border);
+      border-radius:99px; padding:7px 16px; font-size:12px; font-weight:600;
+      cursor:pointer; color:var(--muted); transition:all .2s; white-space:nowrap;
+      backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    }
+    .member-chip.selected { background:rgba(52,211,153,0.8); border-color:rgba(255,255,255,0.3); color:#fff; box-shadow:0 3px 10px rgba(52,211,153,0.25); }
+    .member-chip.chip-add-m { background:rgba(52,211,153,0.08); border:1.5px dashed rgba(52,211,153,0.4); color:#059669; }
+    body.dark .member-chip.chip-add-m { color:#34D399; }
+    #subCatField.visible { max-height:250px; }
+    .sc-cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
+
     /* ── SAFE TO SPEND (PocketGuard-style) ── */
     .safe-card {
       background: linear-gradient(135deg,rgba(52,211,153,0.2) 0%,rgba(16,185,129,0.1) 100%);
@@ -947,6 +969,20 @@
       </div>
     </div>
 
+    <!-- Sub Category (food / petrol / health / bills) -->
+    <div class="conditional-field" id="subCatField">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Sub Category <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <div class="sub-chips-wrap" id="subCatChips"></div>
+      </div>
+    </div>
+
+    <!-- Spent For (Family Member) -->
+    <div class="form-group" id="spentForGroup" style="display:none;">
+      <label class="form-label">Spent For <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+      <div class="sub-chips-wrap" id="spentForChips"></div>
+    </div>
+
     <!-- Note -->
     <div class="form-group">
       <label class="form-label">Note <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
@@ -1070,6 +1106,22 @@
       <button class="add-btn-small" onclick="openGoalModal()">+ Add</button>
     </div>
     <div class="settings-card" id="goalSettingsList"></div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-section-title">
+      Sub Categories
+      <button class="add-btn-small" onclick="openSubCatModal()">+ Add</button>
+    </div>
+    <div class="settings-card" id="subCatSettingsList"></div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-section-title">
+      Family Members
+      <button class="add-btn-small" onclick="openFamilyModal()">+ Add</button>
+    </div>
+    <div class="settings-card" id="familySettingsList"></div>
   </div>
 
   <div class="settings-section">
@@ -1220,6 +1272,53 @@
   </div>
 </div>
 
+<!-- SUB CATEGORY MODAL -->
+<div class="modal-overlay" id="subCatModal" onclick="closeSubCatModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Sub Category</div>
+    <div class="form-group">
+      <label class="form-label">Choose Category</label>
+      <div class="sc-cat-grid" id="scCatGrid">
+        <button class="cat-btn" id="sc-food" onclick="setSubCatFor('food')">
+          <span class="cat-emoji">🍔</span><span class="cat-name">Food</span>
+        </button>
+        <button class="cat-btn" id="sc-transport" onclick="setSubCatFor('transport')">
+          <span class="cat-emoji">⛽</span><span class="cat-name">Petrol</span>
+        </button>
+        <button class="cat-btn" id="sc-health" onclick="setSubCatFor('health')">
+          <span class="cat-emoji">💊</span><span class="cat-name">Health</span>
+        </button>
+        <button class="cat-btn" id="sc-bills" onclick="setSubCatFor('bills')">
+          <span class="cat-emoji">⚡</span><span class="cat-name">Bills</span>
+        </button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Sub Category Name</label>
+      <input type="text" class="form-input" id="subCatNameInput" placeholder="e.g. Groceries, Milk, Lab Test, Electricity…" />
+    </div>
+    <button class="btn-primary" onclick="saveSubCat()">Add Sub Category</button>
+  </div>
+</div>
+
+<!-- FAMILY MEMBER MODAL -->
+<div class="modal-overlay" id="familyModal" onclick="closeFamilyModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Add Family Member</div>
+    <div class="form-group">
+      <label class="form-label">Emoji</label>
+      <input type="text" class="form-input" id="familyEmoji" placeholder="👨 👩 👦 👧 👴 👵" maxlength="4" style="font-size:28px;text-align:center;" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input type="text" class="form-input" id="familyName" placeholder="e.g. Self, Wife, Dad, Priya…" />
+    </div>
+    <button class="btn-primary" onclick="saveFamilyMember()">Add Member</button>
+  </div>
+</div>
+
 <!-- ADD FUNDS MODAL -->
 <div class="modal-overlay" id="addFundsModal" onclick="closeAddFundsModal(event)">
   <div class="modal-sheet">
@@ -1294,13 +1393,16 @@ function startCloudSync(uid) {
     state.allocations  = d.allocations  || {};
     state.recurring    = d.recurring    || [];
     state.accounts     = d.accounts     || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
-    state.customCats   = d.customCats   || { expense: [], income: [] };
-    state.goals        = d.goals        || [];
+    state.customCats     = d.customCats     || { expense: [], income: [] };
+    state.goals          = d.goals          || [];
+    state.subCategories  = d.subCategories  || { food:[], transport:[], health:[], bills:[] };
+    state.familyMembers  = d.familyMembers  || [];
     // Also persist locally
     localStorage.setItem('financeState', JSON.stringify({
       transactions: state.transactions, allocations: state.allocations,
       recurring: state.recurring, accounts: state.accounts,
       customCats: state.customCats, goals: state.goals,
+      subCategories: state.subCategories, familyMembers: state.familyMembers,
       darkMode: state.darkMode,
       currentMonth: state.currentMonth, currentYear: state.currentYear,
     }));
@@ -1325,8 +1427,10 @@ function saveToCloud() {
       allocations:  state.allocations,
       recurring:    state.recurring,
       accounts:     state.accounts,
-      customCats:   state.customCats,
-      goals:        state.goals,
+      customCats:      state.customCats,
+      goals:           state.goals,
+      subCategories:   state.subCategories,
+      familyMembers:   state.familyMembers,
     }).catch(e => console.error('Cloud save error:', e));
   }, 600);
 }
@@ -1393,11 +1497,14 @@ let state = {
   accounts: JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS)),
   customCats: { expense: [], income: [] },
   goals: [],
+  subCategories: { food:[], transport:[], health:[], bills:[] },
+  familyMembers: [],
   darkMode: false,
   currentMonth: new Date().getMonth(),
   currentYear: new Date().getFullYear(),
   txnFilter: 'all', addType: 'expense',
-  selectedCat: null, activeAccount: 'all',
+  selectedCat: null, selectedSubCat: null, selectedSpentFor: null,
+  activeAccount: 'all',
   recType: 'expense', recSelectedCat: null,
   addAccountId: 'wallet',
   customCatType: 'expense',
@@ -1414,9 +1521,11 @@ function load() {
     state.currentYear  = p.currentYear  ?? new Date().getFullYear();
     state.recurring    = p.recurring    || [];
     state.accounts     = p.accounts     || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
-    state.customCats   = p.customCats   || { expense: [], income: [] };
-    state.goals        = p.goals        || [];
-    state.darkMode     = p.darkMode     || false;
+    state.customCats     = p.customCats     || { expense: [], income: [] };
+    state.goals          = p.goals          || [];
+    state.subCategories  = p.subCategories  || { food:[], transport:[], health:[], bills:[] };
+    state.familyMembers  = p.familyMembers  || [];
+    state.darkMode       = p.darkMode       || false;
   }
   if (Object.keys(state.allocations).length === 0)
     EXPENSE_CATS.forEach(c => { state.allocations[c.id] = 0; });
@@ -1430,6 +1539,7 @@ function save() {
     transactions: state.transactions, allocations: state.allocations,
     recurring: state.recurring, accounts: state.accounts,
     customCats: state.customCats, goals: state.goals,
+    subCategories: state.subCategories, familyMembers: state.familyMembers,
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
   }));
@@ -1629,12 +1739,14 @@ function txnHTML(t) {
   const acc = state.accounts.find(a=>a.id===t.account);
   const sign = t.type==='income' ? '+' : '-';
   const dateStr = new Date(t.date).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
-  const accPart = acc ? ` · ${acc.emoji} ${acc.name}` : '';
+  const accPart     = acc ? ` · ${acc.emoji} ${acc.name}` : '';
+  const subCatPart  = t.subCategory ? ` · ${t.subCategory}` : '';
+  const spentForPart= t.spentFor ? ` · 👤 ${t.spentFor}` : '';
   return `<div class="txn-item">
     <div class="txn-icon ${t.type}-icon">${cat.emoji}</div>
     <div class="txn-info">
       <div class="txn-name">${t.note||cat.name}</div>
-      <div class="txn-meta">${cat.name} · ${dateStr}${accPart}</div>
+      <div class="txn-meta">${cat.name}${subCatPart} · ${dateStr}${accPart}${spentForPart}</div>
     </div>
     <div class="txn-amount ${t.type}">${sign}${fmt(t.amount)}</div>
     <button class="delete-btn" onclick="deleteTxn('${t.id}')">×</button>
@@ -1648,7 +1760,8 @@ function renderAddPage() {
   document.getElementById('addNote').value   = '';
   document.getElementById('creditFields').classList.remove('visible');
   document.getElementById('bankFields').classList.remove('visible');
-  state.selectedCat = null;
+  document.getElementById('subCatField').classList.remove('visible');
+  state.selectedCat = null; state.selectedSubCat = null; state.selectedSpentFor = null;
   // Default to first account
   const acc = state.accounts[0];
   state.addAccountId = acc.id;
@@ -1657,6 +1770,7 @@ function renderAddPage() {
   document.getElementById('addAccName').textContent = acc.name;
   document.getElementById('addAccBal').textContent  = (bal>=0?'+':'')+fmt(bal);
   renderCatGrid();
+  renderSpentForChips();
 }
 function setType(type) {
   state.addType=type; state.selectedCat=null;
@@ -1674,7 +1788,10 @@ function renderCatGrid() {
     </button>`
   ).join('');
 }
-function selectCat(id) { state.selectedCat=id; renderCatGrid(); }
+function selectCat(id) {
+  state.selectedCat=id; state.selectedSubCat=null;
+  renderCatGrid(); renderSubCatChips();
+}
 
 function saveTransaction() {
   const amount  = parseFloat(document.getElementById('addAmount').value);
@@ -1685,7 +1802,10 @@ function saveTransaction() {
   if (!date)               return alert('Please pick a date.');
   state.transactions.push({
     id: Date.now().toString(), type: state.addType,
-    amount, category: state.selectedCat, note, date, account: state.addAccountId,
+    amount, category: state.selectedCat,
+    subCategory: state.selectedSubCat || '',
+    spentFor: state.selectedSpentFor || '',
+    note, date, account: state.addAccountId,
   });
   save(); navigate('home');
 }
@@ -1845,6 +1965,8 @@ function renderSettings() {
   renderRecurringList();
   renderCustomCatList();
   renderGoalSettings();
+  renderSubCatSettings();
+  renderFamilySettings();
 }
 function renderAllocEdit() {
   document.getElementById('allocEditForm').innerHTML =
@@ -2207,6 +2329,145 @@ function deleteGoal(id) {
   if(!confirm('Delete this goal?'))return;
   state.goals=state.goals.filter(g=>g.id!==id);
   save(); renderGoalsList(); renderGoalSettings();
+}
+
+// ══════════════════ SUB CATEGORIES ══════════════════
+const SUB_CAT_IDS = ['food','transport','health','bills'];
+const SUB_CAT_LABELS = { food:'🍔 Food', transport:'⛽ Petrol', health:'💊 Health', bills:'⚡ Bills' };
+let _subCatFor = 'food';
+
+function setSubCatFor(cat) {
+  _subCatFor = cat;
+  SUB_CAT_IDS.forEach(id => document.getElementById('sc-'+id).classList.remove('selected'));
+  document.getElementById('sc-'+cat).classList.add('selected');
+}
+function renderSubCatChips() {
+  const field = document.getElementById('subCatField');
+  const wrap  = document.getElementById('subCatChips');
+  if (!state.selectedCat || !SUB_CAT_IDS.includes(state.selectedCat)) {
+    field.classList.remove('visible'); state.selectedSubCat = null; return;
+  }
+  const subs = (state.subCategories||{})[state.selectedCat] || [];
+  if (!subs.length) {
+    field.classList.remove('visible');
+    // still show with just the + Add chip
+    field.classList.add('visible');
+    wrap.innerHTML = `<button class="sub-chip chip-add" onclick="openSubCatModal('${state.selectedCat}')">+ Add Sub Category</button>`;
+    return;
+  }
+  field.classList.add('visible');
+  wrap.innerHTML = subs.map(s =>
+    `<button class="sub-chip ${state.selectedSubCat===s?'selected':''}" onclick="selectSubCat(this,'${s.replace(/'/g,"\\'")}')">${s}</button>`
+  ).join('') +
+  `<button class="sub-chip chip-add" onclick="openSubCatModal('${state.selectedCat}')">+ Add</button>`;
+}
+function selectSubCat(el, name) {
+  state.selectedSubCat = state.selectedSubCat === name ? null : name;
+  renderSubCatChips();
+}
+function openSubCatModal(preselect) {
+  _subCatFor = preselect || 'food';
+  document.getElementById('subCatNameInput').value = '';
+  SUB_CAT_IDS.forEach(id => document.getElementById('sc-'+id).classList.remove('selected'));
+  document.getElementById('sc-'+_subCatFor).classList.add('selected');
+  document.getElementById('subCatModal').classList.add('open');
+}
+function closeSubCatModal(e) {
+  if (!e || e.target===document.getElementById('subCatModal'))
+    document.getElementById('subCatModal').classList.remove('open');
+}
+function saveSubCat() {
+  const name = document.getElementById('subCatNameInput').value.trim();
+  if (!name) return alert('Please enter a sub-category name.');
+  if (!state.subCategories) state.subCategories = {};
+  if (!state.subCategories[_subCatFor]) state.subCategories[_subCatFor] = [];
+  if (state.subCategories[_subCatFor].includes(name)) return alert('Already exists.');
+  state.subCategories[_subCatFor].push(name);
+  save();
+  document.getElementById('subCatModal').classList.remove('open');
+  renderSubCatSettings();
+  if (state.selectedCat === _subCatFor) renderSubCatChips();
+}
+function deleteSubCat(cat, name) {
+  if (!confirm(`Delete "${name}"?`)) return;
+  state.subCategories[cat] = (state.subCategories[cat]||[]).filter(s=>s!==name);
+  save(); renderSubCatSettings();
+  if (state.selectedCat === cat) renderSubCatChips();
+}
+function renderSubCatSettings() {
+  const el = document.getElementById('subCatSettingsList');
+  if (!el) return;
+  const all = SUB_CAT_IDS.flatMap(id =>
+    ((state.subCategories||{})[id]||[]).map(name => ({ id, name }))
+  );
+  if (!all.length) { el.innerHTML='<div class="empty-inner">No sub categories yet. Tap <b>+ Add</b>.</div>'; return; }
+  el.innerHTML = all.map(x => `
+    <div class="account-item">
+      <div class="account-icon" style="font-size:18px;">${SUB_CAT_LABELS[x.id].split(' ')[0]}</div>
+      <div class="account-info">
+        <div class="account-name">${x.name}</div>
+        <div class="account-balance">${SUB_CAT_LABELS[x.id].split(' ').slice(1).join(' ')}</div>
+      </div>
+      <button onclick="deleteSubCat('${x.id}','${x.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:4px 8px;">✕</button>
+    </div>`).join('');
+}
+
+// ══════════════════ FAMILY MEMBERS ══════════════════
+function renderSpentForChips() {
+  const group = document.getElementById('spentForGroup');
+  const wrap  = document.getElementById('spentForChips');
+  if (!group) return;
+  const members = state.familyMembers || [];
+  if (!members.length) { group.style.display='none'; return; }
+  group.style.display = '';
+  wrap.innerHTML = members.map(m =>
+    `<button class="member-chip ${state.selectedSpentFor===m.name?'selected':''}" onclick="selectSpentFor('${m.name.replace(/'/g,"\\'")}')">
+      ${m.emoji||'👤'} ${m.name}
+    </button>`
+  ).join('') +
+  `<button class="member-chip chip-add-m" onclick="openFamilyModal()">+ Add</button>`;
+}
+function selectSpentFor(name) {
+  state.selectedSpentFor = state.selectedSpentFor === name ? null : name;
+  renderSpentForChips();
+}
+function openFamilyModal() {
+  document.getElementById('familyName').value = '';
+  document.getElementById('familyEmoji').value = '';
+  document.getElementById('familyModal').classList.add('open');
+}
+function closeFamilyModal(e) {
+  if (!e || e.target===document.getElementById('familyModal'))
+    document.getElementById('familyModal').classList.remove('open');
+}
+function saveFamilyMember() {
+  const name  = document.getElementById('familyName').value.trim();
+  const emoji = document.getElementById('familyEmoji').value.trim() || '👤';
+  if (!name) return alert('Please enter a name.');
+  if (!state.familyMembers) state.familyMembers = [];
+  if (state.familyMembers.find(m=>m.name===name)) return alert('Already added.');
+  state.familyMembers.push({ name, emoji });
+  save();
+  document.getElementById('familyModal').classList.remove('open');
+  renderFamilySettings();
+  renderSpentForChips();
+}
+function deleteFamilyMember(name) {
+  if (!confirm(`Remove "${name}" from family list?`)) return;
+  state.familyMembers = (state.familyMembers||[]).filter(m=>m.name!==name);
+  save(); renderFamilySettings(); renderSpentForChips();
+}
+function renderFamilySettings() {
+  const el = document.getElementById('familySettingsList');
+  if (!el) return;
+  const members = state.familyMembers || [];
+  if (!members.length) { el.innerHTML='<div class="empty-inner">No family members yet. Tap <b>+ Add</b>.</div>'; return; }
+  el.innerHTML = members.map(m => `
+    <div class="account-item">
+      <div class="account-icon">${m.emoji||'👤'}</div>
+      <div class="account-info"><div class="account-name">${m.name}</div></div>
+      <button onclick="deleteFamilyMember('${m.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:4px 8px;">✕</button>
+    </div>`).join('');
 }
 
 // ══════════════════ SAFE TO SPEND (PocketGuard-style) ══════════════════
