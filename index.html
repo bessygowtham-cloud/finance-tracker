@@ -295,6 +295,31 @@
     .txn-amount.income { color: var(--income); }
     .txn-amount.expense { color: var(--expense); }
     .delete-btn { background: none; border: none; color: var(--expense); font-size: 18px; cursor: pointer; padding: 4px; flex-shrink: 0; opacity: .7; }
+    .edit-btn {
+      background: rgba(124,110,246,0.1); border: 1px solid rgba(124,110,246,0.25);
+      color: var(--primary); font-size: 13px; cursor: pointer;
+      padding: 5px 8px; flex-shrink: 0; border-radius: 8px;
+      line-height: 1; transition: background .15s;
+    }
+    .edit-btn:active { background: rgba(124,110,246,0.22); }
+    /* ── EDIT MODAL SPECIFIC ── */
+    .edit-type-toggle {
+      display: flex; background: rgba(124,110,246,0.1);
+      border: 1px solid rgba(124,110,246,0.2);
+      border-radius: 12px; padding: 3px; margin-bottom: 14px;
+    }
+    .edit-type-toggle button {
+      flex: 1; padding: 8px; border: none; background: transparent;
+      border-radius: 9px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .22s; color: var(--muted);
+    }
+    .edit-type-toggle button.active {
+      background: var(--glass-light); border: 1px solid var(--glass-border-light);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08); color: var(--text);
+    }
+    body.dark .edit-type-toggle button.active { background: var(--glass-dark); border-color: var(--glass-border-dark); color: var(--text); }
+    .edit-type-toggle button.active.income { color: var(--income); }
+    .edit-type-toggle button.active.expense { color: var(--expense); }
 
     /* ── SECTION HEADER ── */
     .section-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 16px 8px; }
@@ -824,6 +849,8 @@
     body.dark .member-chip.chip-add-m { color:#34D399; }
     #subCatField.visible { max-height:250px; }
     #bankFields.visible { max-height:200px; }
+    #editSubCatField.visible { max-height:250px; }
+    #editBankFields.visible { max-height:200px; }
     .sc-cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
 
     /* ── SAFE TO SPEND (PocketGuard-style) ── */
@@ -1373,6 +1400,79 @@
   </div>
 </div>
 
+<!-- EDIT TRANSACTION MODAL -->
+<div class="modal-overlay" id="editTxnModal" onclick="closeEditTxnModal(event)">
+  <div class="modal-sheet" style="max-height:90vh;">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Edit Transaction</div>
+
+    <!-- Type Toggle -->
+    <div class="edit-type-toggle">
+      <button id="editTypeExpense" onclick="setEditType('expense')">↓ Expense</button>
+      <button id="editTypeIncome"  onclick="setEditType('income')">↑ Income</button>
+    </div>
+
+    <!-- Amount -->
+    <div class="form-group">
+      <label class="form-label">Amount</label>
+      <div class="amount-input-wrap">
+        <span class="amount-currency">₹</span>
+        <input type="number" class="form-input" id="editAmount" placeholder="0" inputmode="decimal" />
+      </div>
+    </div>
+
+    <!-- Account -->
+    <div class="form-group">
+      <label class="form-label">Account</label>
+      <div class="acc-chips-row" id="editAccountChips"></div>
+    </div>
+
+    <!-- Conditional: Credit Card Due Date -->
+    <div class="conditional-field" id="editCreditFields">
+      <div class="form-group">
+        <label class="form-label">Credit Card Due Date</label>
+        <input type="date" class="form-input" id="editCreditDueDate" />
+      </div>
+    </div>
+
+    <!-- Conditional: Bank -->
+    <div class="conditional-field" id="editBankFields">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Bank</label>
+        <div class="sub-chips-wrap" id="editBankChips"></div>
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <div class="cat-grid" id="editCatGrid"></div>
+    </div>
+
+    <!-- Sub Category -->
+    <div class="conditional-field" id="editSubCatField">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Sub Category <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <div class="sub-chips-wrap" id="editSubCatChips"></div>
+      </div>
+    </div>
+
+    <!-- Note -->
+    <div class="form-group">
+      <label class="form-label">Note <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+      <input type="text" class="form-input" id="editNote" placeholder="e.g. Zomato order" />
+    </div>
+
+    <!-- Date -->
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-input" id="editDate" />
+    </div>
+
+    <button class="btn-primary" onclick="saveEditTxn()">Update Transaction</button>
+  </div>
+</div>
+
 <!-- INSTALL BANNER -->
 <div class="install-banner" id="installBanner">
   <div class="install-banner-text">📱 Add Finance to your home screen!</div>
@@ -1754,6 +1854,7 @@ function txnHTML(t) {
       <div class="txn-meta">${cat.name}${subCatPart} · ${dateStr}${accPart}${bankPart}${spentForPart}</div>
     </div>
     <div class="txn-amount ${t.type}">${sign}${fmt(t.amount)}</div>
+    <button class="edit-btn" onclick="openEditTxn('${t.id}')">✏️</button>
     <button class="delete-btn" onclick="deleteTxn('${t.id}')">×</button>
   </div>`;
 }
@@ -1816,6 +1917,171 @@ function deleteTxn(id) {
   if (!confirm('Delete this transaction?')) return;
   state.transactions = state.transactions.filter(t=>t.id!==id);
   save();
+  const a = document.querySelector('.page.active');
+  if(a.id==='page-home') renderDashboard();
+  if(a.id==='page-txns') renderTxns();
+}
+
+// ══════════════════ EDIT TRANSACTION ══════════════════
+let editState = {
+  txnId: null, type: 'expense',
+  selectedCat: null, selectedSubCat: null,
+  selectedBank: null, accountId: null
+};
+
+function openEditTxn(id) {
+  const t = state.transactions.find(x=>x.id===id);
+  if (!t) return;
+  editState.txnId       = id;
+  editState.type        = t.type;
+  editState.selectedCat = t.category || null;
+  editState.selectedSubCat = t.subCategory || null;
+  editState.selectedBank   = t.bank || null;
+  editState.accountId      = t.account || state.accounts[0]?.id;
+
+  // Populate fields
+  document.getElementById('editAmount').value = t.amount;
+  document.getElementById('editNote').value   = t.note || '';
+  document.getElementById('editDate').value   = t.date;
+  if (t.creditDueDate) document.getElementById('editCreditDueDate').value = t.creditDueDate;
+
+  // Type toggle
+  setEditType(t.type, true);
+
+  // Account chips
+  renderEditAccountChips();
+
+  // Conditional fields
+  document.getElementById('editCreditFields').classList.toggle('visible', editState.accountId==='credit');
+  const bankVis = editState.accountId==='bank';
+  document.getElementById('editBankFields').classList.toggle('visible', bankVis);
+  if (bankVis) renderEditBankChips();
+
+  // Cat & sub-cat
+  renderEditCatGrid();
+  renderEditSubCatChips();
+
+  document.getElementById('editTxnModal').classList.add('open');
+}
+
+function closeEditTxnModal(e) {
+  if (!e || e.target === document.getElementById('editTxnModal'))
+    document.getElementById('editTxnModal').classList.remove('open');
+}
+
+function setEditType(type, skipGridRefresh) {
+  editState.type = type;
+  if (!skipGridRefresh) { editState.selectedCat = null; editState.selectedSubCat = null; }
+  const eBtn = document.getElementById('editTypeExpense');
+  const iBtn = document.getElementById('editTypeIncome');
+  eBtn.className = type==='expense' ? 'active expense' : '';
+  iBtn.className = type==='income'  ? 'active income'  : '';
+  renderEditCatGrid();
+}
+
+function renderEditAccountChips() {
+  const wrap = document.getElementById('editAccountChips');
+  if (!wrap) return;
+  wrap.innerHTML = state.accounts.map(a =>
+    `<button class="acc-chip ${editState.accountId===a.id?'selected':''}" onclick="selectEditAccount('${a.id}')">
+      <span class="acc-chip-emoji">${a.emoji}</span>${a.name}
+    </button>`
+  ).join('');
+}
+
+function selectEditAccount(id) {
+  editState.accountId = id;
+  renderEditAccountChips();
+  document.getElementById('editCreditFields').classList.toggle('visible', id==='credit');
+  const bankVis = id==='bank';
+  document.getElementById('editBankFields').classList.toggle('visible', bankVis);
+  if (bankVis) renderEditBankChips();
+  else { document.getElementById('editBankFields').classList.remove('visible'); }
+}
+
+function renderEditBankChips() {
+  const wrap = document.getElementById('editBankChips');
+  if (!wrap) return;
+  wrap.innerHTML = (state.bankTags||[]).map(b =>
+    `<button class="sub-chip ${editState.selectedBank===b?'selected':''}" onclick="selectEditBank('${b.replace(/'/g,"\\'")}')">
+      🏦 ${b}
+    </button>`
+  ).join('') +
+  `<button class="sub-chip chip-add" onclick="addEditCustomBank()">+ Add Bank</button>`;
+}
+function selectEditBank(name) {
+  editState.selectedBank = editState.selectedBank===name ? null : name;
+  renderEditBankChips();
+}
+function addEditCustomBank() {
+  const name = prompt('Enter bank name:');
+  if (!name||!name.trim()) return;
+  const t = name.trim();
+  if (!state.bankTags.includes(t)) { state.bankTags.push(t); save(); }
+  editState.selectedBank = t;
+  renderEditBankChips();
+}
+
+function renderEditCatGrid() {
+  const builtIn = editState.type==='expense' ? EXPENSE_CATS : INCOME_CATS;
+  const custom  = state.customCats?.[editState.type] || [];
+  const wrap = document.getElementById('editCatGrid');
+  if (!wrap) return;
+  wrap.innerHTML = [...builtIn,...custom].map(c=>
+    `<button class="cat-btn ${editState.selectedCat===c.id?'selected':''}" onclick="selectEditCat('${c.id}')">
+      <span class="cat-emoji">${c.emoji}</span><span class="cat-name">${c.name}</span>
+    </button>`
+  ).join('');
+  renderEditSubCatChips();
+}
+function selectEditCat(id) {
+  editState.selectedCat=id; editState.selectedSubCat=null;
+  renderEditCatGrid();
+}
+
+function renderEditSubCatChips() {
+  const field = document.getElementById('editSubCatField');
+  const wrap  = document.getElementById('editSubCatChips');
+  if (!field||!wrap) return;
+  const subMap = { food:'food', transport:'transport', health:'health', bills:'bills' };
+  const key = subMap[editState.selectedCat];
+  const subs = key ? (state.subCategories[key]||[]) : [];
+  if (!subs.length) { field.classList.remove('visible'); return; }
+  field.classList.add('visible');
+  wrap.innerHTML = subs.map(s=>
+    `<button class="sub-chip ${editState.selectedSubCat===s?'selected':''}" onclick="selectEditSubCat('${s.replace(/'/g,"\\'")}')">
+      ${s}
+    </button>`
+  ).join('');
+}
+function selectEditSubCat(s) {
+  editState.selectedSubCat = editState.selectedSubCat===s ? null : s;
+  renderEditSubCatChips();
+}
+
+function saveEditTxn() {
+  const amount = parseFloat(document.getElementById('editAmount').value);
+  const note   = document.getElementById('editNote').value.trim();
+  const date   = document.getElementById('editDate').value;
+  if (!amount||amount<=0) return alert('Please enter a valid amount.');
+  if (!editState.selectedCat) return alert('Please select a category.');
+  if (!date) return alert('Please pick a date.');
+
+  const idx = state.transactions.findIndex(t=>t.id===editState.txnId);
+  if (idx===-1) return;
+  state.transactions[idx] = {
+    ...state.transactions[idx],
+    type:        editState.type,
+    amount,
+    category:    editState.selectedCat,
+    subCategory: editState.selectedSubCat || '',
+    bank:        editState.selectedBank   || '',
+    note, date,
+    account:     editState.accountId,
+    creditDueDate: editState.accountId==='credit' ? document.getElementById('editCreditDueDate').value : '',
+  };
+  save();
+  document.getElementById('editTxnModal').classList.remove('open');
   const a = document.querySelector('.page.active');
   if(a.id==='page-home') renderDashboard();
   if(a.id==='page-txns') renderTxns();
