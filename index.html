@@ -95,11 +95,11 @@
       -webkit-backdrop-filter: blur(30px) saturate(200%);
       border-bottom: 1px solid rgba(255,255,255,0.25);
       box-shadow: 0 2px 20px rgba(124,110,246,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
-      padding: 52px 20px 18px;
+      padding: 26px 16px 10px;
       color: #fff;
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
+      align-items: center;
       position: sticky;
       top: 0;
       z-index: 50;
@@ -108,7 +108,7 @@
       background: rgba(60,45,120,0.75);
       border-bottom-color: rgba(255,255,255,0.1);
     }
-    .top-nav h1 { font-size: 20px; font-weight: 700; letter-spacing: -.2px; }
+    .top-nav h1 { font-size: 15px; font-weight: 700; letter-spacing: -.1px; }
     .settings-header-controls {
       display: none;
       align-items: center;
@@ -121,13 +121,13 @@
       border: 1px solid rgba(255,255,255,0.35);
       border-radius: 99px;
       color: #fff;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 700;
-      padding: 5px 13px;
+      padding: 3px 10px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       white-space: nowrap;
     }
     .settings-header-btn:active { opacity: 0.8; }
@@ -136,11 +136,11 @@
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.35);
       border-radius: 99px;
-      padding: 5px 10px;
+      padding: 3px 8px;
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 13px;
+      gap: 5px;
+      font-size: 11px;
       font-weight: 700;
       color: #fff;
     }
@@ -149,8 +149,8 @@
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.35);
       border-radius: 99px;
-      padding: 5px 16px;
-      font-size: 13px;
+      padding: 3px 12px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       color: #fff;
@@ -356,25 +356,51 @@
     .amount-input-wrap .form-input { padding-left: 38px; font-size: 26px; font-weight: 800; letter-spacing: -.5px; }
 
     /* ── CATEGORY GRID ── */
-    .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .cat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
     .cat-btn {
       background: var(--input-bg);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1.5px solid var(--input-border);
-      border-radius: 14px; padding: 10px 4px 8px;
+      border-radius: 12px; padding: 7px 2px 6px;
       cursor: pointer; text-align: center;
       transition: all .2s;
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
     }
-    .cat-btn .cat-emoji { font-size: 22px; }
-    .cat-btn .cat-name { font-size: 10px; font-weight: 600; color: var(--muted); }
+    .cat-btn .cat-emoji { font-size: 16px; }
+    .cat-btn .cat-name { font-size: 9px; font-weight: 600; color: var(--muted); line-height: 1.2; }
     .cat-btn.selected {
       background: rgba(124,110,246,0.18);
       border-color: rgba(124,110,246,0.5);
       box-shadow: 0 0 0 2px rgba(124,110,246,0.15);
     }
     .cat-btn.selected .cat-name { color: var(--primary); }
+
+    /* ── ACCOUNT CHIPS ROW ── */
+    .acc-chips-row {
+      display: flex; gap: 7px; flex-wrap: wrap;
+    }
+    .acc-chip {
+      display: flex; align-items: center; gap: 5px;
+      padding: 7px 13px;
+      background: var(--input-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1.5px solid var(--input-border);
+      border-radius: 99px;
+      font-size: 13px; font-weight: 600;
+      color: var(--muted);
+      cursor: pointer; white-space: nowrap;
+      transition: all .2s;
+    }
+    .acc-chip .acc-chip-emoji { font-size: 15px; }
+    .acc-chip.selected {
+      background: rgba(124,110,246,0.85);
+      border-color: rgba(255,255,255,0.3);
+      color: #fff;
+      box-shadow: 0 3px 12px rgba(124,110,246,0.35);
+    }
+    .acc-chip:active { transform: scale(.95); }
 
     /* ── CUSTOM ACCOUNT DROPDOWN ── */
     .glass-select-wrap { position: relative; }
@@ -797,6 +823,7 @@
     .member-chip.chip-add-m { background:rgba(52,211,153,0.08); border:1.5px dashed rgba(52,211,153,0.4); color:#059669; }
     body.dark .member-chip.chip-add-m { color:#34D399; }
     #subCatField.visible { max-height:250px; }
+    #bankFields.visible { max-height:200px; }
     .sc-cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
 
     /* ── SAFE TO SPEND (PocketGuard-style) ── */
@@ -976,26 +1003,10 @@
       </div>
     </div>
 
-    <!-- Category -->
-    <div class="form-group">
-      <label class="form-label">Category</label>
-      <div class="cat-grid" id="catGrid"></div>
-    </div>
-
-    <!-- Account Dropdown -->
+    <!-- Account Tags -->
     <div class="form-group">
       <label class="form-label">Account</label>
-      <div class="glass-select-wrap">
-        <div class="glass-select" id="addAccountTrigger" onclick="toggleAccountDropdown()">
-          <span class="glass-select-icon" id="addAccIcon">💵</span>
-          <div class="glass-select-label" id="addAccName">Cash</div>
-          <div class="glass-select-sub" id="addAccBal">₹0</div>
-          <svg class="glass-select-chevron" id="addAccChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-          </svg>
-        </div>
-        <div class="glass-dropdown-menu" id="addAccountMenu"></div>
-      </div>
+      <div class="acc-chips-row" id="addAccountChips"></div>
     </div>
 
     <!-- Conditional: Credit Card Due Date -->
@@ -1008,10 +1019,16 @@
 
     <!-- Conditional: Bank Name -->
     <div class="conditional-field" id="bankFields">
-      <div class="form-group">
-        <label class="form-label">Bank Name</label>
-        <input type="text" class="form-input" id="bankName" placeholder="e.g. HDFC, SBI, ICICI..." />
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Bank</label>
+        <div class="sub-chips-wrap" id="bankChips"></div>
       </div>
+    </div>
+
+    <!-- Category -->
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <div class="cat-grid" id="catGrid"></div>
     </div>
 
     <!-- Sub Category (food / petrol / health / bills) -->
@@ -1517,11 +1534,12 @@ let state = {
   currentMonth: new Date().getMonth(),
   currentYear: new Date().getFullYear(),
   txnFilter: 'all', addType: 'expense',
-  selectedCat: null, selectedSubCat: null, selectedSpentFor: null,
+  selectedCat: null, selectedSubCat: null, selectedSpentFor: null, selectedBank: null,
   activeAccount: 'all',
   recType: 'expense', recSelectedCat: null,
   addAccountId: 'wallet',
   customCatType: 'expense',
+  bankTags: ['Standard Chartered', 'Axis Bank', 'HDFC'],
 };
 
 // ══════════════════ PERSISTENCE ══════════════════
@@ -1539,6 +1557,7 @@ function load() {
     state.goals          = p.goals          || [];
     state.subCategories  = p.subCategories  || { food:[], transport:[], health:[], bills:[] };
     state.familyMembers  = p.familyMembers  || [];
+    state.bankTags       = p.bankTags       || ['Standard Chartered', 'Axis Bank', 'HDFC'];
     state.darkMode       = p.darkMode       || false;
   }
   if (Object.keys(state.allocations).length === 0)
@@ -1555,6 +1574,7 @@ function save() {
     recurring: state.recurring, accounts: state.accounts,
     customCats: state.customCats, goals: state.goals,
     subCategories: state.subCategories, familyMembers: state.familyMembers,
+    bankTags: state.bankTags,
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
   }));
@@ -1634,60 +1654,26 @@ function toggleDarkMode() {
   if (document.getElementById('page-charts').classList.contains('active')) renderCharts();
 }
 
-// ══════════════════ ACCOUNT DROPDOWN ══════════════════
-function toggleAccountDropdown() {
-  const menu = document.getElementById('addAccountMenu');
-  const chevron = document.getElementById('addAccChevron');
-  const trigger = document.getElementById('addAccountTrigger');
-  const isOpen = menu.classList.contains('open');
-  if (isOpen) {
-    menu.classList.remove('open');
-    chevron.classList.remove('open');
-    trigger.classList.remove('open');
-  } else {
-    renderAccountDropdownItems();
-    menu.classList.add('open');
-    chevron.classList.add('open');
-    trigger.classList.add('open');
-  }
+// ══════════════════ ACCOUNT CHIPS ══════════════════
+function renderAccountChips() {
+  const wrap = document.getElementById('addAccountChips');
+  if (!wrap) return;
+  wrap.innerHTML = state.accounts.map(a =>
+    `<button class="acc-chip ${state.addAccountId===a.id?'selected':''}" onclick="selectAddAccount('${a.id}')">
+      <span class="acc-chip-emoji">${a.emoji}</span>${a.name}
+    </button>`
+  ).join('');
 }
-function closeAccountDropdown() {
-  document.getElementById('addAccountMenu')?.classList.remove('open');
-  document.getElementById('addAccChevron')?.classList.remove('open');
-  document.getElementById('addAccountTrigger')?.classList.remove('open');
-}
-function renderAccountDropdownItems() {
-  document.getElementById('addAccountMenu').innerHTML = state.accounts.map(a => {
-    const bal = accountBalance(a.id);
-    const balStr = (bal>=0?'+':'')+fmt(bal);
-    return `<div class="glass-dropdown-item ${state.addAccountId===a.id?'selected':''}" onclick="selectAddAccount('${a.id}')">
-      <div class="dropdown-item-icon">${a.emoji}</div>
-      <div class="dropdown-item-info">
-        <div class="dropdown-item-name">${a.name}</div>
-        <div class="dropdown-item-bal">${balStr}</div>
-      </div>
-      ${state.addAccountId===a.id ? '<span class="dropdown-item-check">✓</span>' : ''}
-    </div>`;
-  }).join('');
-}
+function closeAccountDropdown() { /* kept for nav compatibility */ }
 function selectAddAccount(id) {
   state.addAccountId = id;
-  const acc = state.accounts.find(a=>a.id===id);
-  const bal = accountBalance(id);
-  document.getElementById('addAccIcon').textContent = acc.emoji;
-  document.getElementById('addAccName').textContent = acc.name;
-  document.getElementById('addAccBal').textContent  = (bal>=0?'+':'')+fmt(bal);
-  closeAccountDropdown();
+  renderAccountChips();
   // Conditional fields
   document.getElementById('creditFields').classList.toggle('visible', id==='credit');
-  document.getElementById('bankFields').classList.toggle('visible', id==='bank');
+  const bankVisible = id==='bank';
+  document.getElementById('bankFields').classList.toggle('visible', bankVisible);
+  if (bankVisible) renderBankChips();
 }
-
-// Close dropdown on outside tap
-document.addEventListener('click', e => {
-  const wrap = document.querySelector('.glass-select-wrap');
-  if (wrap && !wrap.contains(e.target)) closeAccountDropdown();
-});
 
 // ══════════════════ DASHBOARD ══════════════════
 function renderDashboard() {
@@ -1760,11 +1746,12 @@ function txnHTML(t) {
   const accPart     = acc ? ` · ${acc.emoji} ${acc.name}` : '';
   const subCatPart  = t.subCategory ? ` · ${t.subCategory}` : '';
   const spentForPart= t.spentFor ? ` · 👤 ${t.spentFor}` : '';
+  const bankPart    = t.bank ? ` · 🏦 ${t.bank}` : '';
   return `<div class="txn-item">
     <div class="txn-icon ${t.type}-icon">${cat.emoji}</div>
     <div class="txn-info">
       <div class="txn-name">${t.note||cat.name}</div>
-      <div class="txn-meta">${cat.name}${subCatPart} · ${dateStr}${accPart}${spentForPart}</div>
+      <div class="txn-meta">${cat.name}${subCatPart} · ${dateStr}${accPart}${bankPart}${spentForPart}</div>
     </div>
     <div class="txn-amount ${t.type}">${sign}${fmt(t.amount)}</div>
     <button class="delete-btn" onclick="deleteTxn('${t.id}')">×</button>
@@ -1779,14 +1766,11 @@ function renderAddPage() {
   document.getElementById('creditFields').classList.remove('visible');
   document.getElementById('bankFields').classList.remove('visible');
   document.getElementById('subCatField').classList.remove('visible');
-  state.selectedCat = null; state.selectedSubCat = null; state.selectedSpentFor = null;
+  state.selectedCat = null; state.selectedSubCat = null; state.selectedSpentFor = null; state.selectedBank = null;
+  renderBankChips();
   // Default to first account
-  const acc = state.accounts[0];
-  state.addAccountId = acc.id;
-  const bal = accountBalance(acc.id);
-  document.getElementById('addAccIcon').textContent = acc.emoji;
-  document.getElementById('addAccName').textContent = acc.name;
-  document.getElementById('addAccBal').textContent  = (bal>=0?'+':'')+fmt(bal);
+  state.addAccountId = state.accounts[0]?.id || 'wallet';
+  renderAccountChips();
   renderCatGrid();
   renderSpentForChips();
 }
@@ -1823,6 +1807,7 @@ function saveTransaction() {
     amount, category: state.selectedCat,
     subCategory: state.selectedSubCat || '',
     spentFor: state.selectedSpentFor || '',
+    bank: state.selectedBank || '',
     note, date, account: state.addAccountId,
   });
   save(); navigate('home');
@@ -2449,6 +2434,35 @@ function selectSpentFor(name) {
   state.selectedSpentFor = state.selectedSpentFor === name ? null : name;
   renderSpentForChips();
 }
+
+// ── BANK TAG CHIPS ──
+function renderBankChips() {
+  const wrap = document.getElementById('bankChips');
+  if (!wrap) return;
+  wrap.innerHTML = (state.bankTags || []).map(b =>
+    `<button class="sub-chip bank-chip ${state.selectedBank===b?'selected':''}" onclick="selectBank('${b.replace(/'/g,"\\'")}')" style="${state.selectedBank===b?'':''}">
+      🏦 ${b}
+    </button>`
+  ).join('') +
+  `<button class="sub-chip chip-add" onclick="addCustomBank()">+ Add Bank</button>`;
+}
+function selectBank(name) {
+  state.selectedBank = state.selectedBank === name ? null : name;
+  renderBankChips();
+}
+function addCustomBank() {
+  const name = prompt('Enter bank name:');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  if (state.bankTags.includes(trimmed)) {
+    selectBank(trimmed); return;
+  }
+  state.bankTags.push(trimmed);
+  state.selectedBank = trimmed;
+  save();
+  renderBankChips();
+}
+
 function openFamilyModal() {
   document.getElementById('familyName').value = '';
   document.getElementById('familyEmoji').value = '';
