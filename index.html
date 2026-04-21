@@ -998,19 +998,26 @@
 
 <!-- TOP NAV -->
 <div class="top-nav">
-  <div>
-    <h1 id="pageTitle">Dashboard</h1>
-    <div id="lastUpdatedBadge" style="font-size:9px;opacity:0.7;font-weight:500;margin-top:1px;letter-spacing:0.2px;">Updated: <!--BUILD_TIME--></div>
-  </div>
-  <button class="month-pill" onclick="openMonthPicker()" id="monthPill">Apr 2026</button>
-  <div class="settings-header-controls" id="settingsHeaderControls">
-    <button class="settings-header-btn" id="syncHeaderBtn" onclick="signInGoogle()">☁️ Sign in</button>
-    <div class="settings-header-toggle">
-      🌙
-      <label class="toggle-switch" style="margin:0;">
-        <input type="checkbox" id="darkModeToggleHeader" onchange="toggleDarkMode()" />
-        <span class="toggle-slider"></span>
-      </label>
+  <h1 id="pageTitle">Dashboard</h1>
+
+  <!-- Right side controls -->
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <!-- Last updated badge (always visible) -->
+    <div style="text-align:right;">
+      <button class="month-pill" onclick="openMonthPicker()" id="monthPill" style="display:block;margin-bottom:3px;">Apr 2026</button>
+      <div style="font-size:9px;opacity:0.72;font-weight:500;letter-spacing:0.2px;white-space:nowrap;padding-right:2px;">🕐 <!--BUILD_TIME--></div>
+    </div>
+
+    <!-- Settings page controls -->
+    <div class="settings-header-controls" id="settingsHeaderControls">
+      <button class="settings-header-btn" id="syncHeaderBtn" onclick="signInGoogle()">☁️ Sign in</button>
+      <div class="settings-header-toggle">
+        🌙
+        <label class="toggle-switch" style="margin:0;">
+          <input type="checkbox" id="darkModeToggleHeader" onchange="toggleDarkMode()" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
     </div>
   </div>
 </div>
