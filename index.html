@@ -893,6 +893,89 @@
     .nw-stat-label { font-size:9px; opacity:.7; text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
     .nw-stat-val { font-size:13px; font-weight:800; }
 
+    /* ── PURCHASES PAGE ── */
+    .purchase-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 0; border-bottom: 1px solid var(--border);
+    }
+    .purchase-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .purchase-icon {
+      width: 46px; height: 46px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+      background: rgba(124,110,246,0.14);
+      border: 1px solid rgba(124,110,246,0.22);
+    }
+    .purchase-info { flex: 1; min-width: 0; }
+    .purchase-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .purchase-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .purchase-amount { font-size: 15px; font-weight: 700; color: var(--primary); flex-shrink: 0; }
+    .bill-thumb {
+      width: 34px; height: 34px; border-radius: 9px;
+      object-fit: cover; cursor: pointer; flex-shrink: 0;
+      border: 1.5px solid rgba(124,110,246,0.3);
+    }
+    .bill-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+      background: rgba(52,211,153,0.15); color: #059669; flex-shrink: 0;
+    }
+    body.dark .bill-badge { color: #34D399; }
+    .no-bill-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+      background: rgba(251,191,36,0.15); color: #D97706; flex-shrink: 0;
+    }
+    body.dark .no-bill-badge { color: #FBBF24; }
+    .bill-upload-area {
+      border: 2px dashed rgba(124,110,246,0.4); border-radius: 16px;
+      padding: 22px 16px; text-align: center; cursor: pointer;
+      background: rgba(124,110,246,0.04); transition: background .2s;
+    }
+    .bill-upload-area:hover { background: rgba(124,110,246,0.09); }
+    .bill-upload-icon { font-size: 32px; margin-bottom: 8px; }
+    .bill-upload-text { font-size: 13px; color: var(--muted); font-weight: 600; }
+    .bill-preview-wrap { position: relative; }
+    .bill-preview-img { width: 100%; border-radius: 12px; max-height: 180px; object-fit: contain; display: block; border: 1px solid var(--border); }
+    .bill-remove-btn {
+      display: block; width: 100%; text-align: center;
+      background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25);
+      color: #ef4444; border-radius: 10px; padding: 8px; font-size: 13px;
+      font-weight: 600; cursor: pointer; margin-top: 8px;
+    }
+    .purch-cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 4px; }
+    .purch-cat-btn {
+      background: var(--input-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1.5px solid var(--input-border); border-radius: 12px; padding: 8px 3px 7px;
+      cursor: pointer; text-align: center; transition: all .2s;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .purch-cat-btn .cat-emoji { font-size: 16px; }
+    .purch-cat-btn .cat-name { font-size: 9px; font-weight: 600; color: var(--muted); line-height: 1.2; }
+    .purch-cat-btn.selected { background: rgba(124,110,246,0.18); border-color: rgba(124,110,246,0.5); box-shadow: 0 0 0 2px rgba(124,110,246,0.15); }
+    .purch-cat-btn.selected .cat-name { color: var(--primary); }
+    .purch-summary-card {
+      background: linear-gradient(135deg, rgba(124,110,246,0.16) 0%, rgba(155,93,229,0.10) 100%);
+      border: 1px solid rgba(124,110,246,0.22); border-radius: var(--radius);
+      padding: 16px 18px; margin: 16px 16px 4px;
+      display: flex; gap: 0; align-items: stretch;
+    }
+    body.dark .purch-summary-card { background: linear-gradient(135deg,rgba(124,110,246,0.20) 0%,rgba(155,93,229,0.12) 100%); border-color: rgba(124,110,246,0.28); }
+    .purch-summary-stat { flex: 1; text-align: center; padding: 0 6px; border-right: 1px solid rgba(124,110,246,0.15); }
+    .purch-summary-stat:last-child { border-right: none; }
+    .purch-summary-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .purch-summary-value { font-size: 17px; font-weight: 800; color: var(--primary); }
+    .purch-fab {
+      position: fixed; bottom: 114px; right: 20px; z-index: 99;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(145deg,#9B8FFF 0%,#7C6EF6 40%,#9B5DE5 100%);
+      color: #fff; border: none; font-size: 26px; cursor: pointer;
+      box-shadow: 0 8px 24px rgba(124,110,246,0.5);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .purch-fab:active { transform: scale(.9); box-shadow: 0 4px 14px rgba(124,110,246,0.4); }
+    /* bill view modal */
+    .bill-view-img { width: 100%; border-radius: 14px; max-height: 65vh; object-fit: contain; display: block; margin: 0 auto; }
+
     /* ── INSTALL BANNER ── */
     .install-banner {
       background: rgba(100,80,240,0.8);
@@ -1207,6 +1290,41 @@
 
 </div>
 
+<!-- ══════════ PURCHASES TRACKER ══════════ -->
+<div class="page page-pad" id="page-purchases">
+
+  <!-- Summary strip -->
+  <div class="purch-summary-card">
+    <div class="purch-summary-stat">
+      <div class="purch-summary-label">Total Items</div>
+      <div class="purch-summary-value" id="purchTotalItems">0</div>
+    </div>
+    <div class="purch-summary-stat">
+      <div class="purch-summary-label">Total Spent</div>
+      <div class="purch-summary-value" id="purchTotalSpent">₹0</div>
+    </div>
+    <div class="purch-summary-stat">
+      <div class="purch-summary-label">Bills Saved</div>
+      <div class="purch-summary-value" id="purchWithBills">0</div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="purchSearch" type="text" placeholder="Search purchases..." oninput="renderPurchases()" />
+  </div>
+
+  <!-- Category filter chips -->
+  <div class="filter-row" id="purchCatFilter"></div>
+
+  <!-- List -->
+  <div id="purchListContainer"></div>
+
+  <!-- Floating Add Button -->
+  <button class="purch-fab" onclick="openAddPurchaseModal()">+</button>
+</div>
+
 <!-- ══════════ BOTTOM NAV ══════════ -->
 <nav class="bottom-nav">
   <button class="nav-btn active" id="nav-home" onclick="navigate('home')">
@@ -1224,6 +1342,10 @@
   <button class="nav-btn" id="nav-charts" onclick="navigate('charts')">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
     Charts
+  </button>
+  <button class="nav-btn" id="nav-purchases" onclick="navigate('purchases')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+    Purchases
   </button>
   <button class="nav-btn" id="nav-settings" onclick="navigate('settings')">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -1473,6 +1595,102 @@
   </div>
 </div>
 
+<!-- ADD PURCHASE MODAL -->
+<div class="modal-overlay" id="addPurchaseModal" onclick="closeAddPurchaseModal(event)">
+  <div class="modal-sheet" style="max-height:92vh;">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🛒 Add Purchase</div>
+
+    <!-- Product Name -->
+    <div class="form-group">
+      <label class="form-label">Product Name</label>
+      <input type="text" class="form-input" id="purchName" placeholder="e.g. Car Pressure Washer Motor" />
+    </div>
+
+    <!-- Amount -->
+    <div class="form-group">
+      <label class="form-label">Amount Paid</label>
+      <div class="amount-input-wrap">
+        <span class="amount-currency">₹</span>
+        <input type="number" class="form-input" id="purchAmount" placeholder="0" inputmode="decimal" />
+      </div>
+    </div>
+
+    <!-- Account Used -->
+    <div class="form-group">
+      <label class="form-label">Account Used to Purchase</label>
+      <div class="acc-chips-row" id="purchAccountChips"></div>
+    </div>
+
+    <!-- Conditional: Bank Name -->
+    <div class="conditional-field" id="purchBankFields">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Bank</label>
+        <div class="sub-chips-wrap" id="purchBankChips"></div>
+      </div>
+    </div>
+
+    <!-- Conditional: Credit Card Due Date -->
+    <div class="conditional-field" id="purchCreditFields">
+      <div class="form-group">
+        <label class="form-label">Credit Card Due Date</label>
+        <input type="date" class="form-input" id="purchCreditDue" />
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <div class="purch-cat-grid" id="purchCatGrid"></div>
+    </div>
+
+    <!-- Purchase Date -->
+    <div class="form-group">
+      <label class="form-label">Purchase Date</label>
+      <input type="date" class="form-input" id="purchDate" />
+    </div>
+
+    <!-- Warranty Date -->
+    <div class="form-group">
+      <label class="form-label">Warranty Expiry <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+      <input type="date" class="form-input" id="purchWarranty" />
+    </div>
+
+    <!-- Notes -->
+    <div class="form-group">
+      <label class="form-label">Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+      <input type="text" class="form-input" id="purchNotes" placeholder="e.g. Bought at Big Bazaar, Model XYZ" />
+    </div>
+
+    <!-- Bill Upload -->
+    <div class="form-group">
+      <label class="form-label">Upload Bill / Receipt</label>
+      <input type="file" id="purchBillInput" accept="image/*,application/pdf" style="display:none;" onchange="handleBillUpload(event)" />
+      <div id="purchBillUploadArea" class="bill-upload-area" onclick="document.getElementById('purchBillInput').click()">
+        <div class="bill-upload-icon">📄</div>
+        <div class="bill-upload-text">Tap to upload bill or receipt<br><span style="font-size:11px;opacity:.7;">JPG, PNG, PDF supported</span></div>
+      </div>
+      <div id="purchBillPreview" style="display:none;margin-top:10px;">
+        <img id="purchBillPreviewImg" class="bill-preview-img" src="" alt="Bill" />
+        <button class="bill-remove-btn" onclick="removeBillPreview()">✕ Remove Bill</button>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="savePurchase()">Save Purchase</button>
+  </div>
+</div>
+
+<!-- BILL VIEW MODAL -->
+<div class="modal-overlay" id="billViewModal" onclick="closeBillViewModal(event)">
+  <div class="modal-sheet" style="max-height:90vh;">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="billViewTitle">Bill / Receipt</div>
+    <img id="billViewImg" class="bill-view-img" src="" alt="Bill" />
+    <div id="billViewDetails" style="margin-top:16px;"></div>
+    <button class="btn-primary" style="margin-top:14px;background:linear-gradient(135deg,#ef4444,#dc2626);" onclick="closeBillViewModal()">Close</button>
+  </div>
+</div>
+
 <!-- INSTALL BANNER -->
 <div class="install-banner" id="installBanner">
   <div class="install-banner-text">📱 Add Finance to your home screen!</div>
@@ -1535,22 +1753,25 @@ function startCloudSync(uid) {
     state.goals          = d.goals          || [];
     state.subCategories  = d.subCategories  || { food:[], transport:[], health:[], bills:[] };
     state.familyMembers  = d.familyMembers  || [];
+    state.purchases      = d.purchases      || [];
     // Also persist locally
     localStorage.setItem('financeState', JSON.stringify({
       transactions: state.transactions, allocations: state.allocations,
       recurring: state.recurring, accounts: state.accounts,
       customCats: state.customCats, goals: state.goals,
       subCategories: state.subCategories, familyMembers: state.familyMembers,
+      purchases: state.purchases,
       darkMode: state.darkMode,
       currentMonth: state.currentMonth, currentYear: state.currentYear,
     }));
     // Re-render active page
     const active = document.querySelector('.page.active');
     if (active) {
-      if (active.id==='page-home')     renderDashboard();
-      if (active.id==='page-txns')     renderTxns();
-      if (active.id==='page-charts')   renderCharts();
-      if (active.id==='page-settings') renderSettings();
+      if (active.id==='page-home')      renderDashboard();
+      if (active.id==='page-txns')      renderTxns();
+      if (active.id==='page-charts')    renderCharts();
+      if (active.id==='page-settings')  renderSettings();
+      if (active.id==='page-purchases') renderPurchases();
     }
     isSyncingFromCloud = false;
   }, err => console.error('Sync error:', err));
@@ -1569,6 +1790,7 @@ function saveToCloud() {
       goals:           state.goals,
       subCategories:   state.subCategories,
       familyMembers:   state.familyMembers,
+      purchases:       state.purchases,
     }).catch(e => console.error('Cloud save error:', e));
   }, 600);
 }
@@ -1630,6 +1852,7 @@ let state = {
   goals: [],
   subCategories: { food:[], transport:[], health:[], bills:[] },
   familyMembers: [],
+  purchases: [],
   darkMode: false,
   currentMonth: new Date().getMonth(),
   currentYear: new Date().getFullYear(),
@@ -1658,6 +1881,7 @@ function load() {
     state.subCategories  = p.subCategories  || { food:[], transport:[], health:[], bills:[] };
     state.familyMembers  = p.familyMembers  || [];
     state.bankTags       = p.bankTags       || ['Standard Chartered', 'Axis Bank', 'HDFC'];
+    state.purchases      = p.purchases      || [];
     state.darkMode       = p.darkMode       || false;
   }
   if (Object.keys(state.allocations).length === 0)
@@ -1674,7 +1898,7 @@ function save() {
     recurring: state.recurring, accounts: state.accounts,
     customCats: state.customCats, goals: state.goals,
     subCategories: state.subCategories, familyMembers: state.familyMembers,
-    bankTags: state.bankTags,
+    bankTags: state.bankTags, purchases: state.purchases,
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
   }));
@@ -1700,7 +1924,7 @@ function accountBalance(id) {
 }
 
 // ══════════════════ NAVIGATION ══════════════════
-const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings'};
+const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings',purchases:'My Purchases'};
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -1709,6 +1933,7 @@ function navigate(page) {
   if (nb) nb.classList.add('active');
   document.getElementById('pageTitle').textContent = PAGE_TITLES[page]||page;
   document.getElementById('monthPill').style.display = ['home','txns','charts'].includes(page)?'':'none';
+  if (page==='purchases') renderPurchases();
   const shc = document.getElementById('settingsHeaderControls');
   if (page === 'settings') shc.classList.add('visible'); else shc.classList.remove('visible');
   // Close any open dropdown
@@ -2866,6 +3091,356 @@ window.addEventListener('beforeinstallprompt',e=>{
 function installPWA(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;dismissInstall();});}
 function dismissInstall(){document.getElementById('installBanner').classList.remove('show');localStorage.setItem('pwaInstallDismissed','1');}
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+// ══════════════════ PURCHASES TRACKER ══════════════════
+const PURCH_CATS = [
+  {id:'electronics', emoji:'🔌', name:'Electronics'},
+  {id:'autoparts',   emoji:'🚗', name:'Auto Parts'},
+  {id:'appliances',  emoji:'🏠', name:'Appliance'},
+  {id:'clothing',    emoji:'👕', name:'Clothing'},
+  {id:'tools',       emoji:'🔧', name:'Tools'},
+  {id:'kitchen',     emoji:'🍳', name:'Kitchen'},
+  {id:'health',      emoji:'💊', name:'Health'},
+  {id:'books',       emoji:'📚', name:'Books'},
+  {id:'sports',      emoji:'⚽', name:'Sports'},
+  {id:'beauty',      emoji:'💄', name:'Beauty'},
+  {id:'kids',        emoji:'🧸', name:'Kids'},
+  {id:'other',       emoji:'🛒', name:'Other'},
+];
+
+let _purchAccountId = 'wallet';
+let _purchSelectedCat = null;
+let _purchBillData = null;   // base64 string
+let _purchBillType = null;   // 'image' or 'pdf'
+let _purchFilter = 'all';
+let _purchEditId = null;
+
+function openAddPurchaseModal(editId) {
+  _purchEditId = editId || null;
+  _purchBillData = null;
+  _purchBillType = null;
+  _purchSelectedCat = null;
+  _purchAccountId = state.accounts[0]?.id || 'wallet';
+
+  // Reset fields
+  document.getElementById('purchName').value     = '';
+  document.getElementById('purchAmount').value   = '';
+  document.getElementById('purchNotes').value    = '';
+  document.getElementById('purchWarranty').value = '';
+  document.getElementById('purchDate').value     = new Date().toISOString().split('T')[0];
+  document.getElementById('purchCreditDue').value= '';
+  document.getElementById('purchBillInput').value= '';
+  document.getElementById('purchBillUploadArea').style.display = '';
+  document.getElementById('purchBillPreview').style.display   = 'none';
+  document.getElementById('purchBankFields').classList.remove('visible');
+  document.getElementById('purchCreditFields').classList.remove('visible');
+
+  // Pre-fill if editing
+  if (_purchEditId) {
+    const p = (state.purchases||[]).find(x=>x.id===_purchEditId);
+    if (p) {
+      document.getElementById('purchName').value     = p.name;
+      document.getElementById('purchAmount').value   = p.amount;
+      document.getElementById('purchNotes').value    = p.notes || '';
+      document.getElementById('purchWarranty').value = p.warranty || '';
+      document.getElementById('purchDate').value     = p.date;
+      _purchAccountId    = p.accountId || state.accounts[0]?.id || 'wallet';
+      _purchSelectedCat  = p.category || null;
+      _purchBillData     = p.billData || null;
+      _purchBillType     = p.billType || null;
+      if (_purchBillData && _purchBillType === 'image') {
+        document.getElementById('purchBillPreviewImg').src = _purchBillData;
+        document.getElementById('purchBillPreview').style.display    = '';
+        document.getElementById('purchBillUploadArea').style.display = 'none';
+      }
+    }
+    document.querySelector('#addPurchaseModal .modal-title').textContent = '✏️ Edit Purchase';
+    document.querySelector('#addPurchaseModal .btn-primary').textContent = 'Update Purchase';
+  } else {
+    document.querySelector('#addPurchaseModal .modal-title').textContent = '🛒 Add Purchase';
+    document.querySelector('#addPurchaseModal .btn-primary').textContent = 'Save Purchase';
+  }
+
+  renderPurchAccountChips();
+  renderPurchCatGrid();
+  renderPurchBankChips();
+  document.getElementById('addPurchaseModal').classList.add('open');
+}
+
+function closeAddPurchaseModal(e) {
+  if (!e || e.target === document.getElementById('addPurchaseModal'))
+    document.getElementById('addPurchaseModal').classList.remove('open');
+}
+
+function renderPurchAccountChips() {
+  document.getElementById('purchAccountChips').innerHTML = state.accounts.map(a =>
+    `<button class="acc-chip ${_purchAccountId===a.id?'selected':''}" onclick="selectPurchAccount('${a.id}')">
+      <span class="acc-chip-emoji">${a.emoji}</span>${a.name}
+    </button>`
+  ).join('');
+  // Show/hide conditional fields
+  document.getElementById('purchCreditFields').classList.toggle('visible', _purchAccountId==='credit');
+  const isBankAcc = _purchAccountId === 'bank';
+  document.getElementById('purchBankFields').classList.toggle('visible', isBankAcc);
+}
+
+function selectPurchAccount(id) {
+  _purchAccountId = id;
+  renderPurchAccountChips();
+  renderPurchBankChips();
+}
+
+function renderPurchBankChips() {
+  const wrap = document.getElementById('purchBankChips');
+  if (!wrap) return;
+  wrap.innerHTML = (state.bankTags||[]).map(b =>
+    `<button class="sub-chip bank-chip ${state.selectedBank===b?'selected':''}" onclick="selectBank('${b.replace(/'/g,"\\'")}')">🏦 ${b}</button>`
+  ).join('') + `<button class="sub-chip chip-add" onclick="addCustomBank()">+ Add Bank</button>`;
+}
+
+function renderPurchCatGrid() {
+  document.getElementById('purchCatGrid').innerHTML = PURCH_CATS.map(c =>
+    `<button class="purch-cat-btn ${_purchSelectedCat===c.id?'selected':''}" onclick="selectPurchCat('${c.id}')">
+      <span class="cat-emoji">${c.emoji}</span>
+      <span class="cat-name">${c.name}</span>
+    </button>`
+  ).join('');
+}
+
+function selectPurchCat(id) {
+  _purchSelectedCat = id;
+  renderPurchCatGrid();
+}
+
+function handleBillUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  // Warn if PDF (preview not supported as image)
+  if (file.type === 'application/pdf') {
+    _purchBillType = 'pdf';
+    _purchBillData = null; // can't preview PDF inline
+    document.getElementById('purchBillUploadArea').style.display = 'none';
+    document.getElementById('purchBillPreviewImg').src = '';
+    document.getElementById('purchBillPreview').style.display = '';
+    document.getElementById('purchBillPreviewImg').style.display = 'none';
+    const previewDiv = document.getElementById('purchBillPreview');
+    // Show PDF name instead of image
+    let pdfInfo = previewDiv.querySelector('.pdf-info');
+    if (!pdfInfo) {
+      pdfInfo = document.createElement('div');
+      pdfInfo.className = 'pdf-info';
+      previewDiv.insertBefore(pdfInfo, previewDiv.firstChild);
+    }
+    pdfInfo.innerHTML = `<div style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.2);border-radius:12px;padding:14px;text-align:center;"><div style="font-size:28px;margin-bottom:4px;">📄</div><div style="font-size:13px;font-weight:600;color:var(--text);">${file.name}</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">PDF uploaded</div></div>`;
+    _purchBillData = file.name; // store filename for PDF
+    return;
+  }
+  // Image
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _purchBillData = e.target.result;
+    _purchBillType = 'image';
+    document.getElementById('purchBillPreviewImg').src = _purchBillData;
+    document.getElementById('purchBillPreviewImg').style.display = '';
+    document.getElementById('purchBillPreview').style.display    = '';
+    document.getElementById('purchBillUploadArea').style.display = 'none';
+    // Remove any PDF info
+    const pdfInfo = document.getElementById('purchBillPreview').querySelector('.pdf-info');
+    if (pdfInfo) pdfInfo.remove();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeBillPreview() {
+  _purchBillData = null; _purchBillType = null;
+  document.getElementById('purchBillInput').value = '';
+  document.getElementById('purchBillPreview').style.display    = 'none';
+  document.getElementById('purchBillUploadArea').style.display = '';
+  document.getElementById('purchBillPreviewImg').src = '';
+  const pdfInfo = document.getElementById('purchBillPreview').querySelector('.pdf-info');
+  if (pdfInfo) pdfInfo.remove();
+}
+
+function savePurchase() {
+  const name   = document.getElementById('purchName').value.trim();
+  const amount = parseFloat(document.getElementById('purchAmount').value);
+  const date   = document.getElementById('purchDate').value;
+  if (!name)         return alert('Please enter a product name.');
+  if (!amount||amount<=0) return alert('Please enter a valid amount.');
+  if (!date)         return alert('Please select a purchase date.');
+  if (!_purchSelectedCat) return alert('Please select a category.');
+
+  const acc = state.accounts.find(a=>a.id===_purchAccountId);
+
+  const entry = {
+    id:        _purchEditId || (Date.now().toString()+Math.random().toString(36).slice(2)),
+    name,
+    amount,
+    date,
+    accountId:   _purchAccountId,
+    accountName: acc ? acc.name : '',
+    accountEmoji:acc ? acc.emoji : '',
+    bank:        (_purchAccountId==='bank' ? (state.selectedBank||'') : ''),
+    creditDue:   (_purchAccountId==='credit' ? (document.getElementById('purchCreditDue').value||'') : ''),
+    category:    _purchSelectedCat,
+    notes:       document.getElementById('purchNotes').value.trim(),
+    warranty:    document.getElementById('purchWarranty').value || '',
+    billData:    _purchBillData,
+    billType:    _purchBillType,
+  };
+
+  if (_purchEditId) {
+    const idx = state.purchases.findIndex(p=>p.id===_purchEditId);
+    if (idx !== -1) state.purchases[idx] = entry;
+  } else {
+    if (!state.purchases) state.purchases = [];
+    state.purchases.push(entry);
+  }
+
+  save();
+  document.getElementById('addPurchaseModal').classList.remove('open');
+  renderPurchases();
+}
+
+function deletePurchase(id) {
+  if (!confirm('Delete this purchase record?')) return;
+  state.purchases = (state.purchases||[]).filter(p=>p.id!==id);
+  save();
+  renderPurchases();
+}
+
+function viewBill(id) {
+  const p = (state.purchases||[]).find(x=>x.id===id);
+  if (!p || !p.billData) return alert('No bill uploaded for this item.');
+  document.getElementById('billViewTitle').textContent = `📄 ${p.name}`;
+  if (p.billType === 'image') {
+    document.getElementById('billViewImg').src = p.billData;
+    document.getElementById('billViewImg').style.display = '';
+  } else {
+    document.getElementById('billViewImg').style.display = 'none';
+  }
+  const cat = PURCH_CATS.find(c=>c.id===p.category)||{emoji:'🛒',name:p.category};
+  const acc = state.accounts.find(a=>a.id===p.accountId);
+  const dateStr = new Date(p.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+  const warrantyStr = p.warranty ? `<div style="margin-top:6px;font-size:12px;color:var(--muted);">🛡️ Warranty until: <b>${new Date(p.warranty).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</b></div>` : '';
+  document.getElementById('billViewDetails').innerHTML = `
+    <div style="background:var(--glass-light);backdrop-filter:blur(10px);border:1px solid var(--glass-border-light);border-radius:14px;padding:14px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${cat.emoji} ${p.name}</div>
+      <div style="font-size:13px;color:var(--muted);">💰 Amount: <b style="color:var(--primary);">${fmt(p.amount)}</b></div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;">📅 Purchased: ${dateStr}</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;">${acc?acc.emoji:''} Account: ${p.accountName||''}${p.bank?' · '+p.bank:''}</div>
+      ${p.notes?`<div style="font-size:12px;color:var(--muted);margin-top:4px;">📝 ${p.notes}</div>`:''}
+      ${warrantyStr}
+      ${p.billType==='pdf'?`<div style="margin-top:8px;font-size:12px;color:var(--muted);">📄 PDF bill: ${p.billData}</div>`:''}
+    </div>`;
+  document.getElementById('billViewModal').classList.add('open');
+}
+
+function closeBillViewModal(e) {
+  if (!e || e.target===document.getElementById('billViewModal'))
+    document.getElementById('billViewModal').classList.remove('open');
+}
+
+let _purchActiveCatFilter = 'all';
+function setPurchFilter(val, el) {
+  _purchActiveCatFilter = val;
+  document.querySelectorAll('#purchCatFilter .filter-chip').forEach(c=>c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderPurchases();
+}
+
+function renderPurchases() {
+  const purchases = state.purchases || [];
+  const search = (document.getElementById('purchSearch')?.value||'').toLowerCase();
+
+  // Update summary
+  document.getElementById('purchTotalItems').textContent = purchases.length;
+  document.getElementById('purchTotalSpent').textContent = fmt(purchases.reduce((s,p)=>s+p.amount,0));
+  document.getElementById('purchWithBills').textContent  = purchases.filter(p=>p.billData).length;
+
+  // Render category filter chips
+  const usedCats = [...new Set(purchases.map(p=>p.category).filter(Boolean))];
+  const filterEl = document.getElementById('purchCatFilter');
+  filterEl.innerHTML = `<button class="filter-chip ${_purchActiveCatFilter==='all'?'active':''}" onclick="setPurchFilter('all',this)">All</button>` +
+    usedCats.map(cid=>{
+      const c = PURCH_CATS.find(x=>x.id===cid)||{emoji:'🛒',name:cid};
+      return `<button class="filter-chip ${_purchActiveCatFilter===cid?'active':''}" onclick="setPurchFilter('${cid}',this)">${c.emoji} ${c.name}</button>`;
+    }).join('');
+
+  // Filter
+  let filtered = [...purchases];
+  if (_purchActiveCatFilter !== 'all') filtered = filtered.filter(p=>p.category===_purchActiveCatFilter);
+  if (search) filtered = filtered.filter(p=>
+    p.name.toLowerCase().includes(search) ||
+    (p.notes||'').toLowerCase().includes(search) ||
+    (p.accountName||'').toLowerCase().includes(search)
+  );
+  filtered.sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  const container = document.getElementById('purchListContainer');
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state" style="padding:40px 20px;"><div class="emoji">🛒</div><p style="font-size:14px;">${purchases.length===0?'No purchases yet.<br>Tap <b>+</b> to add your first product.':'No results found.'}</p></div>`;
+    return;
+  }
+
+  // Group by month
+  const groups = {};
+  filtered.forEach(p => {
+    const d = new Date(p.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+    if (!groups[key]) groups[key] = { label, items: [] };
+    groups[key].items.push(p);
+  });
+
+  container.innerHTML = Object.keys(groups).sort((a,b)=>b.localeCompare(a)).map(key=>{
+    const grp = groups[key];
+    const grpTotal = grp.items.reduce((s,p)=>s+p.amount,0);
+    return `<div class="txn-date-group" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>${grp.label}</span>
+        <span style="color:var(--primary);font-weight:700;">${fmt(grpTotal)}</span>
+      </div>
+      <div class="card txn-list-card" style="padding:0 16px;margin:0 16px 8px;">
+        ${grp.items.map(p => purchaseItemHTML(p)).join('')}
+      </div>`;
+  }).join('');
+}
+
+function purchaseItemHTML(p) {
+  const cat = PURCH_CATS.find(c=>c.id===p.category)||{emoji:'🛒',name:p.category};
+  const dateStr = new Date(p.date).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  const accInfo = p.accountName ? `${p.accountEmoji||''} ${p.accountName}${p.bank?' · '+p.bank:''}` : '';
+
+  // Warranty status
+  let warrantyBadge = '';
+  if (p.warranty) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const wDate = new Date(p.warranty);
+    const daysLeft = Math.ceil((wDate-today)/(1000*60*60*24));
+    if (daysLeft < 0)
+      warrantyBadge = `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;background:rgba(248,113,113,0.12);color:#ef4444;margin-left:4px;">Expired</span>`;
+    else if (daysLeft <= 30)
+      warrantyBadge = `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;background:rgba(251,191,36,0.15);color:#D97706;margin-left:4px;">${daysLeft}d left</span>`;
+    else
+      warrantyBadge = `<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;background:rgba(52,211,153,0.12);color:#059669;margin-left:4px;">In warranty</span>`;
+  }
+
+  const billBtn = p.billData
+    ? `<span class="bill-badge" onclick="viewBill('${p.id}')" style="cursor:pointer;" title="View Bill">📄 Bill</span>`
+    : `<span class="no-bill-badge">No Bill</span>`;
+
+  return `<div class="purchase-item">
+    <div class="purchase-icon">${cat.emoji}</div>
+    <div class="purchase-info">
+      <div class="purchase-name">${p.name}${warrantyBadge}</div>
+      <div class="purchase-meta">${cat.name} · ${dateStr}${accInfo?' · '+accInfo:''}${p.notes?' · '+p.notes:''}</div>
+    </div>
+    ${billBtn}
+    <div class="purchase-amount">${fmt(p.amount)}</div>
+    <button class="edit-btn" onclick="openAddPurchaseModal('${p.id}')" style="margin-left:2px;">✏️</button>
+    <button class="delete-btn" onclick="deletePurchase('${p.id}')">×</button>
+  </div>`;
+}
 
 // ══════════════════ INIT ══════════════════
 load();
