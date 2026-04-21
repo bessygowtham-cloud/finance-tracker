@@ -26,7 +26,7 @@ jobs:
 
       - name: Inject build timestamp (IST)
         run: |
-          BUILD_TIME=$(TZ="Asia/Kolkata" date "+%d %b %Y · %I:%M %p IST")
+          BUILD_TIME=$(TZ="Asia/Kolkata" date "+%d %b %Y · %I:%M %p")
           sed -i "s|<!--BUILD_TIME-->|${BUILD_TIME}|g" index.html
 
       - name: Setup Pages
