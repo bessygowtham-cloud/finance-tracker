@@ -24,6 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Inject build timestamp (IST)
+        run: |
+          BUILD_TIME=$(TZ="Asia/Kolkata" date "+%d %b %Y · %I:%M %p IST")
+          sed -i "s|<!--BUILD_TIME-->|${BUILD_TIME}|g" index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

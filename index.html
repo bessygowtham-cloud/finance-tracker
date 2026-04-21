@@ -998,7 +998,10 @@
 
 <!-- TOP NAV -->
 <div class="top-nav">
-  <h1 id="pageTitle">Dashboard</h1>
+  <div>
+    <h1 id="pageTitle">Dashboard</h1>
+    <div id="lastUpdatedBadge" style="font-size:9px;opacity:0.7;font-weight:500;margin-top:1px;letter-spacing:0.2px;">Updated: <!--BUILD_TIME--></div>
+  </div>
   <button class="month-pill" onclick="openMonthPicker()" id="monthPill">Apr 2026</button>
   <div class="settings-header-controls" id="settingsHeaderControls">
     <button class="settings-header-btn" id="syncHeaderBtn" onclick="signInGoogle()">☁️ Sign in</button>
