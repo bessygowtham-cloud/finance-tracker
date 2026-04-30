@@ -608,6 +608,130 @@
     .settings-label { flex: 1; font-size: 15px; font-weight: 600; }
     .settings-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
+    /* ── PROFILE CARDS ── */
+    .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 16px 18px; }
+    .profile-card {
+      background: var(--glass-light);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1.5px solid var(--glass-border-light);
+      box-shadow: var(--glass-shadow-light);
+      border-radius: 20px;
+      padding: 18px 14px 16px;
+      cursor: pointer;
+      text-align: center;
+      transition: transform .2s, box-shadow .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    body.dark .profile-card { background: var(--glass-dark); border-color: var(--glass-border-dark); box-shadow: var(--glass-shadow-dark); }
+    .profile-card:active { transform: scale(0.97); }
+    .profile-card.active-profile {
+      background: rgba(124,110,246,0.18);
+      border-color: rgba(124,110,246,0.55);
+      box-shadow: 0 4px 20px rgba(124,110,246,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+    .profile-badge {
+      position: absolute; top: 8px; right: 8px;
+      background: var(--primary); color: #fff;
+      font-size: 9px; font-weight: 800; padding: 2px 7px;
+      border-radius: 99px; letter-spacing: .3px;
+    }
+    .profile-emoji { font-size: 32px; margin-bottom: 8px; }
+    .profile-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .profile-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+    .profile-arrow {
+      display: inline-block; margin-top: 10px;
+      background: rgba(124,110,246,0.12); border: 1px solid rgba(124,110,246,0.25);
+      color: var(--primary); font-size: 11px; font-weight: 700;
+      padding: 4px 12px; border-radius: 99px;
+    }
+    .profile-card.p2 .profile-arrow {
+      background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.3);
+      color: #10b981;
+    }
+    .profile-card.p2.active-profile {
+      background: rgba(52,211,153,0.12);
+      border-color: rgba(52,211,153,0.45);
+      box-shadow: 0 4px 20px rgba(52,211,153,0.18), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+
+    /* ── INVESTMENT PAGE ── */
+    .inv-summary-bar {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin: 16px 16px 0;
+    }
+    .inv-stat-card {
+      background: var(--glass-light);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--glass-border-light);
+      box-shadow: var(--glass-shadow-light);
+      border-radius: 18px; padding: 14px 16px;
+    }
+    body.dark .inv-stat-card { background: var(--glass-dark); border-color: var(--glass-border-dark); box-shadow: var(--glass-shadow-dark); }
+    .inv-stat-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 4px; }
+    .inv-stat-val { font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: -.5px; }
+    .inv-stat-val.profit { color: #10b981; }
+    .inv-stat-val.loss   { color: var(--expense); }
+    .inv-stat-sub { font-size: 11px; margin-top: 2px; }
+    .inv-stat-sub.profit { color: #10b981; }
+    .inv-stat-sub.loss   { color: var(--expense); }
+    .inv-chart-card {
+      background: var(--glass-light);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--glass-border-light);
+      box-shadow: var(--glass-shadow-light);
+      border-radius: 20px; margin: 14px 16px 0;
+      padding: 18px;
+    }
+    body.dark .inv-chart-card { background: var(--glass-dark); border-color: var(--glass-border-dark); box-shadow: var(--glass-shadow-dark); }
+    .inv-chart-wrap { position: relative; height: 180px; display: flex; align-items: center; justify-content: center; }
+    .inv-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 14px; }
+    .inv-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text); }
+    .inv-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .inv-list-section { margin: 14px 16px 0; }
+    .inv-list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .inv-list-title { font-size: 15px; font-weight: 700; }
+    .inv-item {
+      background: var(--glass-light);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--glass-border-light);
+      box-shadow: var(--glass-shadow-light);
+      border-radius: 16px; padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    body.dark .inv-item { background: var(--glass-dark); border-color: var(--glass-border-dark); box-shadow: var(--glass-shadow-dark); }
+    .inv-item-icon { width: 44px; height: 44px; border-radius: 14px; background: rgba(124,110,246,0.12); border: 1px solid rgba(124,110,246,0.2); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+    .inv-item-info { flex: 1; min-width: 0; }
+    .inv-item-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .inv-item-type { font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 600; }
+    .inv-item-right { text-align: right; flex-shrink: 0; }
+    .inv-item-val { font-size: 15px; font-weight: 800; }
+    .inv-item-pl { font-size: 11px; font-weight: 700; margin-top: 2px; }
+    .inv-item-pl.profit { color: #10b981; }
+    .inv-item-pl.loss   { color: var(--expense); }
+    .inv-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .inv-fab {
+      position: fixed; bottom: 100px; right: 20px;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: none; color: #fff; font-size: 26px; font-weight: 300;
+      box-shadow: 0 6px 24px rgba(16,185,129,0.45);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: transform .2s;
+    }
+    .inv-fab:active { transform: scale(0.94); }
+    .inv-type-chip {
+      display: inline-block;
+      background: rgba(124,110,246,0.1); border: 1px solid rgba(124,110,246,0.2);
+      color: var(--primary); font-size: 10px; font-weight: 700;
+      padding: 2px 9px; border-radius: 99px; margin-top: 4px;
+    }
+
     /* ── TOGGLE ── */
     .toggle-switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
@@ -1223,6 +1347,28 @@
 <!-- ══════════ SETTINGS ══════════ -->
 <div class="page page-pad" id="page-settings">
 
+  <!-- ── PROFILES ── -->
+  <div class="settings-section" style="margin-bottom:6px;">
+    <div class="settings-section-title">Profiles</div>
+  </div>
+  <div class="profile-grid">
+    <!-- Profile 1 -->
+    <div class="profile-card active-profile" onclick="navigate('home')">
+      <div class="profile-badge">Active</div>
+      <div class="profile-emoji">💸</div>
+      <div class="profile-name">Personal Finance</div>
+      <div class="profile-desc">Income, expenses & budgets</div>
+      <div class="profile-arrow">Open ›</div>
+    </div>
+    <!-- Profile 2 -->
+    <div class="profile-card p2" onclick="navigate('investments')">
+      <div class="profile-emoji">📊</div>
+      <div class="profile-name">Investments</div>
+      <div class="profile-desc">Stocks, MF, FD, Gold & more</div>
+      <div class="profile-arrow">Open ›</div>
+    </div>
+  </div>
+
   <div class="settings-section">
     <div class="settings-section-title">My Purchases</div>
     <div class="settings-card">
@@ -1339,6 +1485,90 @@
 
   <!-- Floating Add Button -->
   <button class="purch-fab" onclick="openAddPurchaseModal()">+</button>
+</div>
+
+<!-- ══════════ PROFILE 2: INVESTMENTS ══════════ -->
+<div class="page page-pad" id="page-investments">
+
+  <div class="inv-summary-bar">
+    <div class="inv-stat-card">
+      <div class="inv-stat-label">Invested</div>
+      <div class="inv-stat-val" id="invTotalInvested">₹0</div>
+    </div>
+    <div class="inv-stat-card">
+      <div class="inv-stat-label">Current Value</div>
+      <div class="inv-stat-val" id="invTotalCurrent">₹0</div>
+    </div>
+    <div class="inv-stat-card">
+      <div class="inv-stat-label">Total P&L</div>
+      <div class="inv-stat-val" id="invTotalPL">₹0</div>
+      <div class="inv-stat-sub" id="invTotalPLPct">0%</div>
+    </div>
+    <div class="inv-stat-card">
+      <div class="inv-stat-label">Holdings</div>
+      <div class="inv-stat-val" id="invCount">0</div>
+      <div class="inv-stat-sub" style="color:var(--muted);">across types</div>
+    </div>
+  </div>
+
+  <div class="inv-chart-card" id="invChartCard" style="display:none;">
+    <div class="card-title">Portfolio Allocation</div>
+    <div class="inv-chart-wrap">
+      <canvas id="invChart"></canvas>
+    </div>
+    <div class="inv-legend" id="invLegend"></div>
+  </div>
+
+  <div class="inv-list-section">
+    <div class="inv-list-header">
+      <div class="inv-list-title">Holdings</div>
+      <button class="add-btn-small" onclick="openInvestmentModal()">+ Add</button>
+    </div>
+    <div id="invList"></div>
+  </div>
+
+  <button class="inv-fab" onclick="openInvestmentModal()">+</button>
+</div>
+
+<!-- ── INVESTMENT MODAL ── -->
+<div class="modal-overlay" id="investmentModal" onclick="closeInvestmentModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="invModalTitle">Add Investment</div>
+
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input type="text" class="form-input" id="invName" placeholder="e.g., HDFC Top 100, Reliance, SBI FD" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <div class="cat-grid" id="invTypeGrid"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Amount Invested (₹)</label>
+      <input type="number" class="form-input" id="invInvested" placeholder="0" inputmode="decimal" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Current Value (₹)</label>
+      <input type="number" class="form-input" id="invCurrent" placeholder="0" inputmode="decimal" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Date Invested</label>
+      <input type="date" class="form-input" id="invDate" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes (optional)</label>
+      <input type="text" class="form-input" id="invNotes" placeholder="e.g., units, broker, account" />
+    </div>
+
+    <button class="btn-primary" onclick="saveInvestment()" id="invSaveBtn">Save Investment</button>
+    <button class="btn-secondary" style="margin-top:8px;display:none;" id="invDeleteBtn" onclick="deleteCurrentInvestment()">Delete</button>
+  </div>
 </div>
 
 <!-- ══════════ BOTTOM NAV ══════════ -->
@@ -1936,7 +2166,7 @@ function accountBalance(id) {
 }
 
 // ══════════════════ NAVIGATION ══════════════════
-const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings',purchases:'My Purchases'};
+const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings',purchases:'My Purchases',investments:'Investments'};
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -1946,6 +2176,7 @@ function navigate(page) {
   document.getElementById('pageTitle').textContent = PAGE_TITLES[page]||page;
   document.getElementById('monthPill').style.display = ['home','txns','charts'].includes(page)?'':'none';
   if (page==='purchases') renderPurchases();
+  if (page==='investments') renderInvestments();
   const shc = document.getElementById('settingsHeaderControls');
   if (page === 'settings') shc.classList.add('visible'); else shc.classList.remove('visible');
   // Close any open dropdown
@@ -3454,8 +3685,193 @@ function purchaseItemHTML(p) {
   </div>`;
 }
 
+// ══════════════════ PROFILE 2: INVESTMENTS ══════════════════
+const INV_TYPES = [
+  {id:'stocks',     emoji:'📈', name:'Stocks',  color:'#7C6EF6'},
+  {id:'mf',         emoji:'🏦', name:'M.Fund',  color:'#34D399'},
+  {id:'sip',        emoji:'🔁', name:'SIP',     color:'#60A5FA'},
+  {id:'fd',         emoji:'🔒', name:'FD/RD',   color:'#FBBF24'},
+  {id:'gold',       emoji:'🥇', name:'Gold',    color:'#F59E0B'},
+  {id:'crypto',     emoji:'₿',  name:'Crypto',  color:'#F472B6'},
+  {id:'realestate', emoji:'🏠', name:'Realty',  color:'#A78BFA'},
+  {id:'bonds',      emoji:'📃', name:'Bonds',   color:'#2DD4BF'},
+  {id:'other_inv',  emoji:'💰', name:'Other',   color:'#9CA3AF'},
+];
+let investments = [];
+let invSelectedType = 'stocks';
+let invEditingId = null;
+let invChartInstance = null;
+
+function loadInvestments() {
+  const raw = localStorage.getItem('investmentState');
+  if (raw) {
+    try { investments = JSON.parse(raw) || []; } catch(e) { investments = []; }
+  }
+}
+function saveInvestments() {
+  localStorage.setItem('investmentState', JSON.stringify(investments));
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function openInvestmentModal(id) {
+  invEditingId = id || null;
+  document.getElementById('invModalTitle').textContent = id ? 'Edit Investment' : 'Add Investment';
+  document.getElementById('invDeleteBtn').style.display = id ? 'block' : 'none';
+  if (id) {
+    const inv = investments.find(x => x.id === id);
+    if (!inv) return;
+    invSelectedType = inv.type;
+    document.getElementById('invName').value = inv.name || '';
+    document.getElementById('invInvested').value = inv.invested || '';
+    document.getElementById('invCurrent').value = inv.currentValue || '';
+    document.getElementById('invDate').value = inv.date || '';
+    document.getElementById('invNotes').value = inv.notes || '';
+  } else {
+    invSelectedType = 'stocks';
+    ['invName','invInvested','invCurrent','invNotes'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('invDate').value = new Date().toISOString().slice(0,10);
+  }
+  renderInvTypeGrid();
+  document.getElementById('investmentModal').classList.add('open');
+}
+function closeInvestmentModal(e) {
+  if (e && e.target !== document.getElementById('investmentModal')) return;
+  document.getElementById('investmentModal').classList.remove('open');
+}
+function renderInvTypeGrid() {
+  document.getElementById('invTypeGrid').innerHTML = INV_TYPES.map(t =>
+    `<button class="cat-btn ${invSelectedType===t.id?'selected':''}" onclick="selectInvType('${t.id}')">
+      <span class="cat-emoji">${t.emoji}</span><span class="cat-name">${t.name}</span>
+    </button>`
+  ).join('');
+}
+function selectInvType(id) { invSelectedType = id; renderInvTypeGrid(); }
+
+function saveInvestment() {
+  const name = document.getElementById('invName').value.trim();
+  const invested = parseFloat(document.getElementById('invInvested').value) || 0;
+  const currentValue = parseFloat(document.getElementById('invCurrent').value) || 0;
+  const date = document.getElementById('invDate').value;
+  const notes = document.getElementById('invNotes').value.trim();
+  if (!name) { alert('Please enter a name'); return; }
+  if (invested <= 0) { alert('Please enter invested amount'); return; }
+  if (invEditingId) {
+    const inv = investments.find(x => x.id === invEditingId);
+    if (inv) Object.assign(inv, {name, type:invSelectedType, invested, currentValue:currentValue||invested, date, notes});
+  } else {
+    investments.push({
+      id: uid(), name, type: invSelectedType,
+      invested, currentValue: currentValue || invested,
+      date: date || new Date().toISOString().slice(0,10),
+      notes,
+    });
+  }
+  saveInvestments();
+  document.getElementById('investmentModal').classList.remove('open');
+  renderInvestments();
+}
+function deleteCurrentInvestment() {
+  if (!invEditingId) return;
+  if (!confirm('Delete this investment?')) return;
+  investments = investments.filter(x => x.id !== invEditingId);
+  saveInvestments();
+  document.getElementById('investmentModal').classList.remove('open');
+  renderInvestments();
+}
+function deleteInvestment(id) {
+  if (!confirm('Delete this investment?')) return;
+  investments = investments.filter(x => x.id !== id);
+  saveInvestments();
+  renderInvestments();
+}
+
+function renderInvestments() {
+  const totalInvested = investments.reduce((s,i) => s + (i.invested||0), 0);
+  const totalCurrent  = investments.reduce((s,i) => s + (i.currentValue||0), 0);
+  const totalPL = totalCurrent - totalInvested;
+  const plPct = totalInvested > 0 ? (totalPL / totalInvested) * 100 : 0;
+
+  document.getElementById('invTotalInvested').textContent = fmt(totalInvested);
+  document.getElementById('invTotalCurrent').textContent = fmt(totalCurrent);
+  const plEl = document.getElementById('invTotalPL');
+  plEl.textContent = (totalPL>=0?'+':'-') + fmt(totalPL);
+  plEl.className = 'inv-stat-val ' + (totalPL>=0?'profit':'loss');
+  const plPctEl = document.getElementById('invTotalPLPct');
+  plPctEl.textContent = (totalPL>=0?'+':'') + plPct.toFixed(2) + '%';
+  plPctEl.className = 'inv-stat-sub ' + (totalPL>=0?'profit':'loss');
+  document.getElementById('invCount').textContent = investments.length;
+
+  // List
+  const listEl = document.getElementById('invList');
+  if (!investments.length) {
+    listEl.innerHTML = '<div class="empty-inner" style="padding:30px 16px;text-align:center;color:var(--muted);">No investments yet.<br>Tap <b>+ Add</b> to start tracking your portfolio.</div>';
+  } else {
+    listEl.innerHTML = investments.slice().sort((a,b)=>(b.currentValue||0)-(a.currentValue||0)).map(inv => {
+      const t = INV_TYPES.find(x => x.id === inv.type) || INV_TYPES[INV_TYPES.length-1];
+      const pl = (inv.currentValue||0) - (inv.invested||0);
+      const pct = inv.invested>0 ? (pl/inv.invested)*100 : 0;
+      const cls = pl>=0?'profit':'loss';
+      const sign = pl>=0?'+':'-';
+      return `<div class="inv-item">
+        <div class="inv-item-icon" style="background:${t.color}22;border-color:${t.color}55;">${t.emoji}</div>
+        <div class="inv-item-info">
+          <div class="inv-item-name">${inv.name}</div>
+          <div class="inv-item-type">${t.name}${inv.date?' · '+inv.date:''}</div>
+        </div>
+        <div class="inv-item-right">
+          <div class="inv-item-val">${fmt(inv.currentValue||0)}</div>
+          <div class="inv-item-pl ${cls}">${sign}${fmt(pl)} (${pl>=0?'+':''}${pct.toFixed(1)}%)</div>
+        </div>
+        <div class="inv-actions">
+          <button class="edit-btn" onclick="openInvestmentModal('${inv.id}')">✏️</button>
+          <button class="delete-btn" onclick="deleteInvestment('${inv.id}')">×</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  renderInvChart();
+}
+
+function renderInvChart() {
+  const card = document.getElementById('invChartCard');
+  if (!investments.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  // Group by type using current value
+  const totals = {};
+  investments.forEach(inv => {
+    totals[inv.type] = (totals[inv.type] || 0) + (inv.currentValue || 0);
+  });
+  const types = INV_TYPES.filter(t => totals[t.id] > 0);
+  const labels = types.map(t => t.name);
+  const data   = types.map(t => totals[t.id]);
+  const colors = types.map(t => t.color);
+
+  if (invChartInstance) invChartInstance.destroy();
+  const ctx = document.getElementById('invChart').getContext('2d');
+  invChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { display: false } },
+    }
+  });
+
+  const total = data.reduce((a,b)=>a+b,0);
+  document.getElementById('invLegend').innerHTML = types.map((t,i) => {
+    const pct = total>0 ? (data[i]/total)*100 : 0;
+    return `<div class="inv-legend-item">
+      <span class="inv-legend-dot" style="background:${t.color};"></span>
+      ${t.emoji} ${t.name} · ${pct.toFixed(1)}%
+    </div>`;
+  }).join('');
+}
+
 // ══════════════════ INIT ══════════════════
 load();
+loadInvestments();
 renderDashboard();
 updateMonthPill();
 </script>
