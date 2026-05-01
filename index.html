@@ -1548,6 +1548,21 @@
 <!-- ══════════ PROFILE 2: INVESTMENTS ══════════ -->
 <div class="page page-pad" id="page-investments">
 
+  <!-- Live Chennai Gold Rate Banner -->
+  <div id="goldRateBanner" style="margin:14px 16px 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(251,191,36,0.12));border:1px solid rgba(245,158,11,0.35);box-shadow:0 4px 16px rgba(245,158,11,0.12);display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:24px;">🥇</span>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;">Live Chennai Gold</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);" id="goldRateText">Loading...</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="goldRateTime"></div>
+        </div>
+      </div>
+      <button onclick="refreshGoldRate(true)" style="background:rgba(245,158,11,0.25);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:5px 12px;font-size:11px;font-weight:700;color:#92400e;cursor:pointer;">↻ Refresh</button>
+    </div>
+  </div>
+
   <div class="inv-summary-bar">
     <div class="inv-stat-card">
       <div class="inv-stat-label">Invested</div>
@@ -1609,7 +1624,27 @@
       <input type="number" class="form-input" id="invInvested" placeholder="0" inputmode="decimal" />
     </div>
 
-    <div class="form-group">
+    <!-- Gold-specific fields -->
+    <div id="goldFields" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Grams 🥇</label>
+          <input type="number" class="form-input" id="invGrams" placeholder="e.g., 10" inputmode="decimal" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Purity</label>
+          <select class="form-input" id="invPurity">
+            <option value="22">22K (Jewellery)</option>
+            <option value="24">24K (Pure)</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin:-6px 0 12px 2px;">
+        Current value will auto-update from live Chennai rate
+      </div>
+    </div>
+
+    <div class="form-group" id="invCurrentGroup">
       <label class="form-label">Current Value (₹)</label>
       <input type="number" class="form-input" id="invCurrent" placeholder="0" inputmode="decimal" />
     </div>
@@ -2239,7 +2274,7 @@ function navigate(page) {
   document.getElementById('pageTitle').textContent = PAGE_TITLES[page]||page;
   document.getElementById('monthPill').style.display = ['home','txns','charts'].includes(page)?'':'none';
   if (page==='purchases') renderPurchases();
-  if (page==='investments') renderInvestments();
+  if (page==='investments') { renderInvestments(); refreshGoldRate(false); }
   const shc = document.getElementById('settingsHeaderControls');
   if (page === 'settings') shc.classList.add('visible'); else shc.classList.remove('visible');
   // Close any open dropdown
@@ -3791,12 +3826,16 @@ function openInvestmentModal(id) {
     document.getElementById('invCurrent').value = inv.currentValue || '';
     document.getElementById('invDate').value = inv.date || '';
     document.getElementById('invNotes').value = inv.notes || '';
+    document.getElementById('invGrams').value = inv.grams || '';
+    document.getElementById('invPurity').value = inv.purity || '22';
   } else {
     invSelectedType = 'stocks';
-    ['invName','invInvested','invCurrent','invNotes'].forEach(i => document.getElementById(i).value = '');
+    ['invName','invInvested','invCurrent','invNotes','invGrams'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('invPurity').value = '22';
     document.getElementById('invDate').value = new Date().toISOString().slice(0,10);
   }
   renderInvTypeGrid();
+  toggleGoldFields();
   document.getElementById('investmentModal').classList.add('open');
 }
 function closeInvestmentModal(e) {
@@ -3810,7 +3849,17 @@ function renderInvTypeGrid() {
     </button>`
   ).join('');
 }
-function selectInvType(id) { invSelectedType = id; renderInvTypeGrid(); }
+function selectInvType(id) {
+  invSelectedType = id;
+  renderInvTypeGrid();
+  toggleGoldFields();
+}
+function toggleGoldFields() {
+  const isGold = invSelectedType === 'gold';
+  document.getElementById('goldFields').style.display = isGold ? '' : 'none';
+  // Hide manual current-value field for gold (auto-computed)
+  document.getElementById('invCurrentGroup').style.display = isGold ? 'none' : '';
+}
 
 function saveInvestment() {
   const name = document.getElementById('invName').value.trim();
@@ -3820,15 +3869,20 @@ function saveInvestment() {
   const notes = document.getElementById('invNotes').value.trim();
   if (!name) { alert('Please enter a name'); return; }
   if (invested <= 0) { alert('Please enter invested amount'); return; }
+  const isGold = invSelectedType === 'gold';
+  const grams  = isGold ? (parseFloat(document.getElementById('invGrams').value) || 0) : 0;
+  const purity = isGold ? document.getElementById('invPurity').value : '';
+  if (isGold && grams <= 0) { alert('Please enter grams of gold'); return; }
+
   if (invEditingId) {
     const inv = investments.find(x => x.id === invEditingId);
-    if (inv) Object.assign(inv, {name, type:invSelectedType, invested, currentValue:currentValue||invested, date, notes});
+    if (inv) Object.assign(inv, {name, type:invSelectedType, invested, currentValue:currentValue||invested, date, notes, grams, purity});
   } else {
     investments.push({
       id: uid(), name, type: invSelectedType,
       invested, currentValue: currentValue || invested,
       date: date || new Date().toISOString().slice(0,10),
-      notes,
+      notes, grams, purity,
     });
   }
   saveInvestments();
@@ -3850,9 +3904,84 @@ function deleteInvestment(id) {
   renderInvestments();
 }
 
+// ── Live Chennai Gold Rate ──
+// Fetch international spot gold (USD/oz) + USD->INR FX, derive Chennai per-gram rates.
+// 22K = 91.67% of 24K. Cached in localStorage for 30 min.
+let _goldRateCache = null;
+function loadGoldRateCache() {
+  try {
+    const r = localStorage.getItem('goldRateCache');
+    if (r) _goldRateCache = JSON.parse(r);
+  } catch(_) {}
+}
+loadGoldRateCache();
+
+async function refreshGoldRate(force) {
+  const now = Date.now();
+  const fresh = _goldRateCache && (now - _goldRateCache.ts < 30*60*1000);
+  if (!force && fresh) { renderGoldBanner(); return _goldRateCache; }
+  try {
+    // Spot gold price in USD per troy ounce
+    const gp = await fetch('https://api.gold-api.com/price/XAU').then(r=>r.json());
+    const usdPerOz = gp.price;
+    // USD -> INR
+    let inrPerUsd = 83;
+    try {
+      const fx = await fetch('https://api.exchangerate-api.com/v4/latest/USD').then(r=>r.json());
+      if (fx && fx.rates && fx.rates.INR) inrPerUsd = fx.rates.INR;
+    } catch(_) {}
+    const gramsPerOz = 31.1035;
+    const inr24kPerGram = (usdPerOz * inrPerUsd) / gramsPerOz;
+    const inr22kPerGram = inr24kPerGram * (22/24);
+    _goldRateCache = {
+      ts: now,
+      usdPerOz, inrPerUsd,
+      r24: Math.round(inr24kPerGram),
+      r22: Math.round(inr22kPerGram),
+    };
+    localStorage.setItem('goldRateCache', JSON.stringify(_goldRateCache));
+  } catch(e) {
+    console.error('Gold rate fetch failed', e);
+  }
+  renderGoldBanner();
+  renderInvestments();
+  return _goldRateCache;
+}
+
+function renderGoldBanner() {
+  const banner = document.getElementById('goldRateBanner');
+  if (!banner) return;
+  const hasGold = investments.some(i => i.type === 'gold');
+  if (!hasGold && !_goldRateCache) { banner.style.display = 'none'; return; }
+  banner.style.display = '';
+  if (!_goldRateCache) {
+    document.getElementById('goldRateText').textContent = 'Loading live rate...';
+    document.getElementById('goldRateTime').textContent = '';
+    return;
+  }
+  document.getElementById('goldRateText').textContent =
+    `22K ₹${_goldRateCache.r22.toLocaleString('en-IN')}/g · 24K ₹${_goldRateCache.r24.toLocaleString('en-IN')}/g`;
+  const ago = Math.round((Date.now() - _goldRateCache.ts) / 60000);
+  document.getElementById('goldRateTime').textContent =
+    `Updated ${ago<1?'just now':ago+' min ago'} · Spot $${_goldRateCache.usdPerOz.toFixed(2)}/oz · USD ₹${_goldRateCache.inrPerUsd.toFixed(2)}`;
+}
+
+function liveGoldValue(inv) {
+  if (inv.type !== 'gold' || !inv.grams || !_goldRateCache) return inv.currentValue || inv.invested || 0;
+  const rate = inv.purity === '24' ? _goldRateCache.r24 : _goldRateCache.r22;
+  return inv.grams * rate;
+}
+
 function renderInvestments() {
-  const totalInvested = investments.reduce((s,i) => s + (i.invested||0), 0);
-  const totalCurrent  = investments.reduce((s,i) => s + (i.currentValue||0), 0);
+  // Apply live values to gold items in-place for stats (don't mutate stored data)
+  const liveInvestments = investments.map(i => {
+    if (i.type === 'gold' && i.grams && _goldRateCache) {
+      return { ...i, currentValue: liveGoldValue(i) };
+    }
+    return i;
+  });
+  const totalInvested = liveInvestments.reduce((s,i) => s + (i.invested||0), 0);
+  const totalCurrent  = liveInvestments.reduce((s,i) => s + (i.currentValue||0), 0);
   const totalPL = totalCurrent - totalInvested;
   const plPct = totalInvested > 0 ? (totalPL / totalInvested) * 100 : 0;
 
@@ -3868,24 +3997,31 @@ function renderInvestments() {
 
   // List
   const listEl = document.getElementById('invList');
-  if (!investments.length) {
+  if (!liveInvestments.length) {
     listEl.innerHTML = '<div class="empty-inner" style="padding:30px 16px;text-align:center;color:var(--muted);">No investments yet.<br>Tap <b>+ Add</b> to start tracking your portfolio.</div>';
   } else {
-    listEl.innerHTML = investments.slice().sort((a,b)=>(b.currentValue||0)-(a.currentValue||0)).map(inv => {
+    listEl.innerHTML = liveInvestments.slice().sort((a,b)=>(b.currentValue||0)-(a.currentValue||0)).map(inv => {
       const t = INV_TYPES.find(x => x.id === inv.type) || INV_TYPES[INV_TYPES.length-1];
       const pl = (inv.currentValue||0) - (inv.invested||0);
       const pct = inv.invested>0 ? (pl/inv.invested)*100 : 0;
       const cls = pl>=0?'profit':'loss';
       const sign = pl>=0?'+':'-';
+      let subline = `${t.name}${inv.date?' · '+inv.date:''}`;
+      if (inv.type === 'gold' && inv.grams) {
+        const purityLabel = inv.purity === '24' ? '24K' : '22K';
+        subline = `🥇 ${inv.grams}g ${purityLabel}${inv.date?' · '+inv.date:''}`;
+      }
+      const liveTag = (inv.type === 'gold' && inv.grams && _goldRateCache)
+        ? `<span style="font-size:9px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.12);padding:1px 6px;border-radius:99px;margin-left:4px;">LIVE</span>` : '';
       return `<div class="inv-item">
         <div class="inv-item-icon" style="background:${t.color}22;border-color:${t.color}55;">${t.emoji}</div>
         <div class="inv-item-info">
-          <div class="inv-item-name">${inv.name}</div>
-          <div class="inv-item-type">${t.name}${inv.date?' · '+inv.date:''}</div>
+          <div class="inv-item-name">${inv.name} ${liveTag}</div>
+          <div class="inv-item-type">${subline}</div>
         </div>
         <div class="inv-item-right">
           <div class="inv-item-val">${fmt(inv.currentValue||0)}</div>
-          <div class="inv-item-pl ${cls}">${sign}${fmt(pl)} (${pl>=0?'+':''}${pct.toFixed(1)}%)</div>
+          <div class="inv-item-pl ${cls}">${sign}${fmt(Math.abs(pl))} (${pl>=0?'+':''}${pct.toFixed(1)}%)</div>
         </div>
         <div class="inv-actions">
           <button class="edit-btn" onclick="openInvestmentModal('${inv.id}')">✏️</button>
@@ -3896,6 +4032,11 @@ function renderInvestments() {
   }
 
   renderInvChart();
+  renderGoldBanner();
+  // Kick off live rate fetch on first render
+  if (!_goldRateCache || (Date.now() - _goldRateCache.ts > 30*60*1000)) {
+    if (investments.some(i => i.type === 'gold')) refreshGoldRate(false);
+  }
 }
 
 function renderInvChart() {
@@ -3903,10 +4044,11 @@ function renderInvChart() {
   if (!investments.length) { card.style.display = 'none'; return; }
   card.style.display = 'block';
 
-  // Group by type using current value
+  // Group by type using current value (live for gold)
   const totals = {};
   investments.forEach(inv => {
-    totals[inv.type] = (totals[inv.type] || 0) + (inv.currentValue || 0);
+    const cv = (inv.type === 'gold' && inv.grams && _goldRateCache) ? liveGoldValue(inv) : (inv.currentValue || 0);
+    totals[inv.type] = (totals[inv.type] || 0) + cv;
   });
   const types = INV_TYPES.filter(t => totals[t.id] > 0);
   const labels = types.map(t => t.name);
@@ -3937,8 +4079,6 @@ function renderInvChart() {
 // ══════════════════ REMINDERS ══════════════════
 let _reminderTimers = {};
 let _editingReminderId = null;
-
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 
 function notifSupported() { return 'Notification' in window; }
 
