@@ -1435,6 +1435,21 @@
   </div>
 
   <div class="settings-section">
+    <div class="settings-section-title">
+      Reminders 🔔
+      <button class="add-btn-small" onclick="openReminderModal()">+ Add</button>
+    </div>
+    <div class="settings-card">
+      <div class="settings-row" id="reminderPermRow" onclick="requestNotifPerm()" style="cursor:pointer;display:none;">
+        <span class="settings-icon">⚠️</span>
+        <div><div class="settings-label">Enable Notifications</div><div class="settings-sub">Tap to allow reminder alerts</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
+    </div>
+    <div class="settings-card" id="remindersList" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="settings-section">
     <div class="settings-section-title">Data</div>
     <div class="settings-card">
       <div class="settings-row" onclick="exportCSV()" style="cursor:pointer;">
@@ -1450,6 +1465,49 @@
     </div>
   </div>
 
+</div>
+
+<!-- ── REMINDER MODAL ── -->
+<div class="modal-overlay" id="reminderModal" onclick="closeReminderModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="remModalTitle">Add Reminder</div>
+
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input type="text" class="form-input" id="remTitle" placeholder="e.g., Pay rent, Doctor appointment" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Note (optional)</label>
+      <input type="text" class="form-input" id="remNote" placeholder="extra details..." />
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="remDate" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time</label>
+        <input type="time" class="form-input" id="remTime" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Repeat</label>
+      <select class="form-input" id="remRepeat">
+        <option value="none">Once</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+    </div>
+
+    <button class="btn-primary" onclick="saveReminder()">Save Reminder</button>
+    <button class="btn-secondary" style="margin-top:8px;display:none;" id="remDeleteBtn" onclick="deleteCurrentReminder()">Delete</button>
+  </div>
 </div>
 
 <!-- ══════════ PURCHASES TRACKER ══════════ -->
@@ -1996,6 +2054,7 @@ function startCloudSync(uid) {
     state.subCategories  = d.subCategories  || { food:[], transport:[], health:[], bills:[] };
     state.familyMembers  = d.familyMembers  || [];
     state.purchases      = d.purchases      || [];
+    state.reminders      = d.reminders      || [];
     // Also persist locally
     localStorage.setItem('financeState', JSON.stringify({
       transactions: state.transactions, allocations: state.allocations,
@@ -2033,6 +2092,7 @@ function saveToCloud() {
       subCategories:   state.subCategories,
       familyMembers:   state.familyMembers,
       purchases:       state.purchases,
+      reminders:       state.reminders,
     }).catch(e => console.error('Cloud save error:', e));
   }, 600);
 }
@@ -2095,6 +2155,7 @@ let state = {
   subCategories: { food:[], transport:[], health:[], bills:[] },
   familyMembers: [],
   purchases: [],
+  reminders: [],
   darkMode: false,
   currentMonth: new Date().getMonth(),
   currentYear: new Date().getFullYear(),
@@ -2124,6 +2185,7 @@ function load() {
     state.familyMembers  = p.familyMembers  || [];
     state.bankTags       = p.bankTags       || ['Standard Chartered', 'Axis Bank', 'HDFC'];
     state.purchases      = p.purchases      || [];
+    state.reminders      = p.reminders      || [];
     state.darkMode       = p.darkMode       || false;
   }
   if (Object.keys(state.allocations).length === 0)
@@ -2141,6 +2203,7 @@ function save() {
     customCats: state.customCats, goals: state.goals,
     subCategories: state.subCategories, familyMembers: state.familyMembers,
     bankTags: state.bankTags, purchases: state.purchases,
+    reminders: state.reminders,
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
   }));
@@ -2704,6 +2767,8 @@ function renderSettings() {
   renderGoalSettings();
   renderSubCatSettings();
   renderFamilySettings();
+  renderReminders();
+  updateNotifPermRow();
 }
 function renderAllocEdit() {
   document.getElementById('allocEditForm').innerHTML =
@@ -3869,11 +3934,209 @@ function renderInvChart() {
   }).join('');
 }
 
+// ══════════════════ REMINDERS ══════════════════
+let _reminderTimers = {};
+let _editingReminderId = null;
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function notifSupported() { return 'Notification' in window; }
+
+function updateNotifPermRow() {
+  const row = document.getElementById('reminderPermRow');
+  if (!row) return;
+  if (!notifSupported() || Notification.permission === 'granted') {
+    row.style.display = 'none';
+  } else {
+    row.style.display = '';
+  }
+}
+
+function requestNotifPerm() {
+  if (!notifSupported()) {
+    alert('Notifications not supported on this browser. Please install the app to your home screen for best results.');
+    return;
+  }
+  Notification.requestPermission().then(p => {
+    updateNotifPermRow();
+    if (p === 'granted') {
+      try { new Notification('Reminders enabled ✅', { body: 'You will be alerted at scheduled times.', icon: 'icon-192.png' }); } catch(_) {}
+      scheduleAllReminders();
+    }
+  });
+}
+
+function openReminderModal(id) {
+  _editingReminderId = id || null;
+  const r = id ? state.reminders.find(x => x.id === id) : null;
+  document.getElementById('remModalTitle').textContent = r ? 'Edit Reminder' : 'Add Reminder';
+  document.getElementById('remTitle').value  = r ? r.title : '';
+  document.getElementById('remNote').value   = r ? (r.note || '') : '';
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('remDate').value   = r ? r.date : `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  document.getElementById('remTime').value   = r ? r.time : `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  document.getElementById('remRepeat').value = r ? (r.repeat || 'none') : 'none';
+  document.getElementById('remDeleteBtn').style.display = r ? '' : 'none';
+  document.getElementById('reminderModal').classList.add('open');
+  if (notifSupported() && Notification.permission === 'default') {
+    setTimeout(() => requestNotifPerm(), 200);
+  }
+}
+function closeReminderModal(e) {
+  if (!e || e.target === document.getElementById('reminderModal'))
+    document.getElementById('reminderModal').classList.remove('open');
+}
+function saveReminder() {
+  const title  = document.getElementById('remTitle').value.trim();
+  const note   = document.getElementById('remNote').value.trim();
+  const date   = document.getElementById('remDate').value;
+  const time   = document.getElementById('remTime').value;
+  const repeat = document.getElementById('remRepeat').value;
+  if (!title) { alert('Please enter a title'); return; }
+  if (!date || !time) { alert('Please pick a date and time'); return; }
+
+  if (_editingReminderId) {
+    const r = state.reminders.find(x => x.id === _editingReminderId);
+    if (r) Object.assign(r, { title, note, date, time, repeat });
+  } else {
+    state.reminders.push({ id: uid(), title, note, date, time, repeat, createdAt: Date.now() });
+  }
+  save();
+  scheduleAllReminders();
+  renderReminders();
+  closeReminderModal();
+}
+function deleteCurrentReminder() {
+  if (!_editingReminderId) return;
+  if (!confirm('Delete this reminder?')) return;
+  state.reminders = state.reminders.filter(r => r.id !== _editingReminderId);
+  save();
+  scheduleAllReminders();
+  renderReminders();
+  closeReminderModal();
+}
+
+function nextFireTime(r) {
+  // Returns ms timestamp of next firing >= now, or null if past and no repeat
+  const base = new Date(`${r.date}T${r.time}:00`).getTime();
+  const now = Date.now();
+  if (r.repeat === 'none' || !r.repeat) return base >= now ? base : null;
+  if (base >= now) return base;
+  const d = new Date(base);
+  while (d.getTime() < now) {
+    if (r.repeat === 'daily')   d.setDate(d.getDate() + 1);
+    else if (r.repeat === 'weekly')  d.setDate(d.getDate() + 7);
+    else if (r.repeat === 'monthly') d.setMonth(d.getMonth() + 1);
+    else if (r.repeat === 'yearly')  d.setFullYear(d.getFullYear() + 1);
+    else break;
+  }
+  return d.getTime();
+}
+
+function fmtRemWhen(r) {
+  const t = nextFireTime(r);
+  if (!t) return 'Past';
+  const d = new Date(t);
+  const opts = { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' };
+  let s = d.toLocaleString([], opts);
+  if (r.repeat && r.repeat !== 'none') s += ` · 🔁 ${r.repeat}`;
+  return s;
+}
+
+function renderReminders() {
+  const el = document.getElementById('remindersList');
+  if (!el) return;
+  if (!state.reminders || !state.reminders.length) {
+    el.innerHTML = '<div class="empty-inner">No reminders yet.<br>Tap <b>+ Add</b> to create one.</div>';
+    return;
+  }
+  // Sort by next fire
+  const sorted = [...state.reminders].sort((a,b) => (nextFireTime(a)||Infinity) - (nextFireTime(b)||Infinity));
+  el.innerHTML = sorted.map(r => `
+    <div class="settings-row" onclick="openReminderModal('${r.id}')" style="cursor:pointer;">
+      <span class="settings-icon">🔔</span>
+      <div style="flex:1;min-width:0;">
+        <div class="settings-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.title)}</div>
+        <div class="settings-sub">${fmtRemWhen(r)}${r.note ? ' · ' + escapeHtml(r.note) : ''}</div>
+      </div>
+      <span style="color:var(--muted);">›</span>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function scheduleAllReminders() {
+  // Clear existing
+  Object.values(_reminderTimers).forEach(t => clearTimeout(t));
+  _reminderTimers = {};
+  if (!notifSupported() || Notification.permission !== 'granted') return;
+  (state.reminders || []).forEach(r => {
+    const t = nextFireTime(r);
+    if (!t) return;
+    const delay = t - Date.now();
+    // setTimeout supports up to ~24.8 days; only schedule if within 24h to keep it accurate across reloads
+    if (delay > 0 && delay < 24 * 60 * 60 * 1000) {
+      _reminderTimers[r.id] = setTimeout(() => fireReminder(r.id), delay);
+    }
+  });
+}
+
+function fireReminder(id) {
+  const r = state.reminders.find(x => x.id === id);
+  if (!r) return;
+  try {
+    const n = new Notification('🔔 ' + r.title, {
+      body: r.note || 'Reminder',
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      tag: 'rem-' + r.id,
+      requireInteraction: true,
+    });
+    n.onclick = () => { window.focus(); navigate('settings'); n.close(); };
+  } catch(e) { console.error('Notify failed', e); }
+
+  if (r.repeat && r.repeat !== 'none') {
+    // Reschedule for next occurrence
+    setTimeout(scheduleAllReminders, 1000);
+  } else {
+    // One-time: remove
+    state.reminders = state.reminders.filter(x => x.id !== id);
+    save();
+    renderReminders();
+  }
+}
+
+// Periodic safety net: re-check every minute for any due reminders the timer missed
+setInterval(() => {
+  if (!notifSupported() || Notification.permission !== 'granted') return;
+  const now = Date.now();
+  (state.reminders || []).slice().forEach(r => {
+    const t = nextFireTime(r);
+    if (t && t <= now && !_reminderTimers[r.id + '_fired_' + t]) {
+      _reminderTimers[r.id + '_fired_' + t] = true;
+      fireReminder(r.id);
+    }
+  });
+  // Also re-arm timers (in case a far-out reminder is now within 24h window)
+  scheduleAllReminders();
+}, 60 * 1000);
+
+// Re-schedule when tab becomes visible
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') scheduleAllReminders();
+});
+
 // ══════════════════ INIT ══════════════════
 load();
 loadInvestments();
 renderDashboard();
 updateMonthPill();
+scheduleAllReminders();
+if (notifSupported() && Notification.permission === 'default') {
+  // Soft prompt: show only when user opens settings (handled in openReminderModal too)
+}
 </script>
 </body>
 </html>
