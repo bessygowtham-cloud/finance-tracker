@@ -2090,6 +2090,10 @@ function startCloudSync(uid) {
     state.familyMembers  = d.familyMembers  || [];
     state.purchases      = d.purchases      || [];
     state.reminders      = d.reminders      || [];
+    if (Array.isArray(d.investments)) {
+      investments = d.investments;
+      localStorage.setItem('investmentState', JSON.stringify(investments));
+    }
     // Also persist locally
     localStorage.setItem('financeState', JSON.stringify({
       transactions: state.transactions, allocations: state.allocations,
@@ -2108,6 +2112,7 @@ function startCloudSync(uid) {
       if (active.id==='page-charts')    renderCharts();
       if (active.id==='page-settings')  renderSettings();
       if (active.id==='page-purchases') renderPurchases();
+      if (active.id==='page-investments') renderInvestments();
     }
     isSyncingFromCloud = false;
   }, err => console.error('Sync error:', err));
@@ -2128,6 +2133,7 @@ function saveToCloud() {
       familyMembers:   state.familyMembers,
       purchases:       state.purchases,
       reminders:       state.reminders,
+      investments:     (typeof investments !== 'undefined' ? investments : []),
     }).catch(e => console.error('Cloud save error:', e));
   }, 600);
 }
@@ -3810,6 +3816,8 @@ function loadInvestments() {
 }
 function saveInvestments() {
   localStorage.setItem('investmentState', JSON.stringify(investments));
+  // Also push to Firebase cloud sync
+  if (typeof saveToCloud === 'function') saveToCloud();
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
