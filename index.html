@@ -590,6 +590,50 @@
       text-transform: uppercase; letter-spacing: .8px; padding: 0 0 8px 4px;
       display: flex; justify-content: space-between; align-items: center;
     }
+    /* Accordion behavior */
+    .settings-section-title.accordion-head {
+      cursor: pointer;
+      user-select: none;
+      padding: 12px 14px;
+      background: var(--glass-light);
+      backdrop-filter: blur(16px) saturate(180%);
+      border: 1px solid var(--glass-border-light);
+      box-shadow: var(--glass-shadow-light);
+      border-radius: 14px;
+      margin-bottom: 0;
+      transition: border-radius .15s, margin-bottom .15s;
+    }
+    body.dark .settings-section-title.accordion-head {
+      background: var(--glass-dark);
+      border-color: var(--glass-border-dark);
+      box-shadow: var(--glass-shadow-dark);
+    }
+    .settings-section-title.accordion-head::before {
+      content: '▾';
+      display: inline-block;
+      margin-right: 10px;
+      font-size: 14px;
+      color: var(--primary);
+      transition: transform .25s cubic-bezier(.4,0,.2,1);
+      flex-shrink: 0;
+    }
+    .settings-section:not(.collapsed) .settings-section-title.accordion-head {
+      border-radius: 14px 14px 0 0;
+      margin-bottom: 10px;
+    }
+    .settings-section.collapsed .settings-section-title.accordion-head::before {
+      transform: rotate(-90deg);
+    }
+    .settings-section.collapsed > *:not(.settings-section-title) {
+      display: none !important;
+    }
+    .settings-section.collapsed .settings-section-title.accordion-head {
+      opacity: 0.92;
+    }
+    .settings-section-title.accordion-head .add-btn-small {
+      z-index: 2;
+      position: relative;
+    }
     .settings-card {
       background: var(--glass-light);
       backdrop-filter: blur(24px) saturate(180%);
@@ -4682,6 +4726,37 @@ function switchProfile(id) {
   navigate(prof.page);
 }
 
+// ══════════════════ SETTINGS ACCORDION ══════════════════
+function initSettingsAccordion() {
+  const page = document.getElementById('page-settings');
+  if (!page) return;
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('settingsAccordionState') || '{}'); } catch(_) {}
+
+  const sections = page.querySelectorAll('.settings-section');
+  sections.forEach((sec, idx) => {
+    const title = sec.querySelector('.settings-section-title');
+    if (!title) return;
+    // Skip sections that only contain a title (e.g., Profiles header)
+    const otherChildren = Array.from(sec.children).filter(c => c !== title);
+    if (otherChildren.length === 0) return;
+
+    title.classList.add('accordion-head');
+    const key = 'acc_' + idx;
+    // Default: collapsed (so the page is tidy on first open)
+    const isCollapsed = saved[key] !== undefined ? saved[key] : true;
+    if (isCollapsed) sec.classList.add('collapsed');
+
+    title.addEventListener('click', (e) => {
+      // Don't toggle when clicking the "+ Add" button or other interactive elements inside the title
+      if (e.target.closest('button')) return;
+      sec.classList.toggle('collapsed');
+      saved[key] = sec.classList.contains('collapsed');
+      try { localStorage.setItem('settingsAccordionState', JSON.stringify(saved)); } catch(_) {}
+    });
+  });
+}
+
 // ══════════════════ INJECT CLOSE-X BUTTONS INTO ALL MODALS ══════════════════
 function injectModalCloseButtons() {
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -4707,6 +4782,7 @@ updateMonthPill();
 updateProfilePill('home');
 scheduleAllReminders();
 injectModalCloseButtons();
+initSettingsAccordion();
 if (notifSupported() && Notification.permission === 'default') {
   // Soft prompt: show only when user opens settings (handled in openReminderModal too)
 }
