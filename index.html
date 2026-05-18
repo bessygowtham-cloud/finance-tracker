@@ -1559,7 +1559,10 @@
           <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="goldRateTime"></div>
         </div>
       </div>
-      <button onclick="refreshGoldRate(true)" style="background:rgba(245,158,11,0.25);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:5px 12px;font-size:11px;font-weight:700;color:#92400e;cursor:pointer;">↻ Refresh</button>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button onclick="promptManualGoldRate()" title="Edit rate manually" style="background:rgba(255,255,255,0.5);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:5px 10px;font-size:12px;font-weight:700;color:#92400e;cursor:pointer;">✏️</button>
+        <button onclick="refreshGoldRate(true)" style="background:rgba(245,158,11,0.25);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:5px 12px;font-size:11px;font-weight:700;color:#92400e;cursor:pointer;">↻ Fetch</button>
+      </div>
     </div>
   </div>
 
@@ -2280,7 +2283,7 @@ function navigate(page) {
   document.getElementById('pageTitle').textContent = PAGE_TITLES[page]||page;
   document.getElementById('monthPill').style.display = ['home','txns','charts'].includes(page)?'':'none';
   if (page==='purchases') renderPurchases();
-  if (page==='investments') { renderInvestments(); refreshGoldRate(false); }
+  if (page==='investments') { renderInvestments(); }
   const shc = document.getElementById('settingsHeaderControls');
   if (page === 'settings') shc.classList.add('visible'); else shc.classList.remove('visible');
   // Close any open dropdown
@@ -3912,48 +3915,94 @@ function deleteInvestment(id) {
   renderInvestments();
 }
 
-// ── Live Chennai Gold Rate ──
-// Fetch international spot gold (USD/oz) + USD->INR FX, derive Chennai per-gram rates.
-// 22K = 91.67% of 24K. Cached in localStorage for 30 min.
+// ── Live Chennai Gold Rate (from livechennai.com) ──
+// Fetches the actual Chennai retail gold price (₹/gram) via CORS proxy.
+// Falls back to manual entry if the parse fails.
 let _goldRateCache = null;
 function loadGoldRateCache() {
   try {
-    const r = localStorage.getItem('goldRateCache');
+    const r = localStorage.getItem('goldRateChennai');
     if (r) _goldRateCache = JSON.parse(r);
   } catch(_) {}
 }
 loadGoldRateCache();
 
-async function refreshGoldRate(force) {
-  const now = Date.now();
-  const fresh = _goldRateCache && (now - _goldRateCache.ts < 30*60*1000);
-  if (!force && fresh) { renderGoldBanner(); return _goldRateCache; }
-  try {
-    // Spot gold price in USD per troy ounce
-    const gp = await fetch('https://api.gold-api.com/price/XAU').then(r=>r.json());
-    const usdPerOz = gp.price;
-    // USD -> INR
-    let inrPerUsd = 83;
-    try {
-      const fx = await fetch('https://api.exchangerate-api.com/v4/latest/USD').then(r=>r.json());
-      if (fx && fx.rates && fx.rates.INR) inrPerUsd = fx.rates.INR;
-    } catch(_) {}
-    const gramsPerOz = 31.1035;
-    const inr24kPerGram = (usdPerOz * inrPerUsd) / gramsPerOz;
-    const inr22kPerGram = inr24kPerGram * (22/24);
-    _goldRateCache = {
-      ts: now,
-      usdPerOz, inrPerUsd,
-      r24: Math.round(inr24kPerGram),
-      r22: Math.round(inr22kPerGram),
-    };
-    localStorage.setItem('goldRateCache', JSON.stringify(_goldRateCache));
-  } catch(e) {
-    console.error('Gold rate fetch failed', e);
-  }
+function setGoldRate(r22, source) {
+  if (!r22 || r22 < 1000) return;
+  const r24 = Math.round(r22 * 24 / 22);
+  _goldRateCache = { ts: Date.now(), r22: Math.round(r22), r24, source: source || 'manual' };
+  localStorage.setItem('goldRateChennai', JSON.stringify(_goldRateCache));
   renderGoldBanner();
   renderInvestments();
+}
+
+async function tryFetchLiveChennai() {
+  // Try a couple of CORS proxies in order
+  const target = 'https://www.livechennai.com/gold_silverrate.asp';
+  const proxies = [
+    'https://api.allorigins.win/get?url=' + encodeURIComponent(target),
+    'https://corsproxy.io/?' + encodeURIComponent(target),
+  ];
+  for (const url of proxies) {
+    try {
+      const res = await fetch(url);
+      const data = await res.text();
+      // allorigins returns JSON with .contents; corsproxy returns raw HTML
+      let html = data;
+      try { const j = JSON.parse(data); if (j.contents) html = j.contents; } catch(_) {}
+      // Normalize
+      const text = html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&#?\w+;/g,' ').replace(/\s+/g, ' ');
+      // Find 22 Carat / 22ct / 916 prices — pick the nearest ₹ number per gram
+      // livechennai shows: "22 Carat Gold / Gram   Rs. 8,500"
+      let m22 = text.match(/22\s*(?:carat|ct|k|kt|crt)[^0-9]{0,80}(?:Rs\.?|₹|INR)?\s*([\d,]{4,8})/i);
+      let m24 = text.match(/24\s*(?:carat|ct|k|kt|crt)[^0-9]{0,80}(?:Rs\.?|₹|INR)?\s*([\d,]{4,8})/i);
+      let r22 = m22 ? parseInt(m22[1].replace(/,/g,'')) : null;
+      let r24 = m24 ? parseInt(m24[1].replace(/,/g,'')) : null;
+      // Sanity range for /gram price (₹3,000–₹25,000)
+      const sane = v => v && v >= 3000 && v <= 25000;
+      if (sane(r22)) return { r22, r24: sane(r24) ? r24 : Math.round(r22 * 24/22), source: 'livechennai.com' };
+      // Try per-8g (sovereign) fallback: divide by 8
+      if (r22 && r22 > 25000 && r22 < 200000) {
+        r22 = Math.round(r22 / 8);
+        if (sane(r22)) return { r22, r24: Math.round(r22 * 24/22), source: 'livechennai.com (sovereign)' };
+      }
+    } catch(e) {
+      console.warn('Proxy failed', url, e);
+    }
+  }
+  return null;
+}
+
+async function refreshGoldRate(forceAuto) {
+  // If user clicked refresh, attempt auto-fetch
+  if (forceAuto) {
+    const txt = document.getElementById('goldRateText');
+    if (txt) txt.textContent = 'Fetching from livechennai.com...';
+    const fetched = await tryFetchLiveChennai();
+    if (fetched && fetched.r22) {
+      setGoldRate(fetched.r22, fetched.source);
+      return _goldRateCache;
+    }
+    // Auto failed → prompt manual
+    promptManualGoldRate('Auto-fetch failed. Enter today\'s 22K rate per gram (₹) from livechennai.com:');
+    return _goldRateCache;
+  }
+  // Soft refresh: only attempt auto if we have NO cache yet
+  if (!_goldRateCache) {
+    const fetched = await tryFetchLiveChennai();
+    if (fetched && fetched.r22) setGoldRate(fetched.r22, fetched.source);
+  }
+  renderGoldBanner();
   return _goldRateCache;
+}
+
+function promptManualGoldRate(msg) {
+  const cur = _goldRateCache && _goldRateCache.r22 ? _goldRateCache.r22 : '';
+  const v = prompt(msg || 'Enter today\'s 22K Chennai gold rate (₹ per gram):', cur);
+  if (v == null) return;
+  const r22 = parseInt(String(v).replace(/[^\d]/g,''));
+  if (!r22 || r22 < 1000 || r22 > 50000) { alert('Please enter a valid per-gram rate (e.g., 14750)'); return; }
+  setGoldRate(r22, 'manual');
 }
 
 function renderGoldBanner() {
@@ -3963,15 +4012,16 @@ function renderGoldBanner() {
   if (!hasGold && !_goldRateCache) { banner.style.display = 'none'; return; }
   banner.style.display = '';
   if (!_goldRateCache) {
-    document.getElementById('goldRateText').textContent = 'Loading live rate...';
+    document.getElementById('goldRateText').textContent = 'Tap ↻ Refresh or ✏️ to set today\'s rate';
     document.getElementById('goldRateTime').textContent = '';
     return;
   }
   document.getElementById('goldRateText').textContent =
     `22K ₹${_goldRateCache.r22.toLocaleString('en-IN')}/g · 24K ₹${_goldRateCache.r24.toLocaleString('en-IN')}/g`;
   const ago = Math.round((Date.now() - _goldRateCache.ts) / 60000);
-  document.getElementById('goldRateTime').textContent =
-    `Updated ${ago<1?'just now':ago+' min ago'} · Spot $${_goldRateCache.usdPerOz.toFixed(2)}/oz · USD ₹${_goldRateCache.inrPerUsd.toFixed(2)}`;
+  const src = _goldRateCache.source || 'manual';
+  const when = ago < 1 ? 'just now' : (ago < 60 ? ago + ' min ago' : Math.round(ago/60) + 'h ago');
+  document.getElementById('goldRateTime').textContent = `Source: ${src} · Updated ${when}`;
 }
 
 function liveGoldValue(inv) {
@@ -4041,9 +4091,9 @@ function renderInvestments() {
 
   renderInvChart();
   renderGoldBanner();
-  // Kick off live rate fetch on first render
-  if (!_goldRateCache || (Date.now() - _goldRateCache.ts > 30*60*1000)) {
-    if (investments.some(i => i.type === 'gold')) refreshGoldRate(false);
+  // Auto-fetch rate once on first render if no cache yet
+  if (!_goldRateCache && investments.some(i => i.type === 'gold')) {
+    refreshGoldRate(false);
   }
 }
 
