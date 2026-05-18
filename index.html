@@ -655,6 +655,70 @@
       border-color: rgba(52,211,153,0.45);
       box-shadow: 0 4px 20px rgba(52,211,153,0.18), inset 0 1px 0 rgba(255,255,255,0.3);
     }
+    .profile-card.p3 .profile-arrow {
+      background: rgba(251,191,36,0.15); border-color: rgba(251,191,36,0.35);
+      color: #b45309;
+    }
+    .profile-card.p3.active-profile {
+      background: rgba(251,191,36,0.15);
+      border-color: rgba(251,191,36,0.5);
+      box-shadow: 0 4px 20px rgba(251,191,36,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+    }
+
+    /* ── PARKED MONEY (Profile 3) PAGE ── */
+    .parked-summary {
+      margin: 16px 16px 0;
+      padding: 22px 20px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(251,191,36,0.85), rgba(245,158,11,0.75));
+      color: #fff;
+      box-shadow: 0 12px 36px rgba(245,158,11,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+      position: relative; overflow: hidden;
+    }
+    .parked-summary::before { content:''; position:absolute; width:180px; height:180px; border-radius:50%; background:rgba(255,255,255,0.08); top:-50px; right:-40px; }
+    .parked-summary-label { font-size: 12px; opacity: .85; font-weight: 600; letter-spacing: .3px; margin-bottom: 4px; }
+    .parked-summary-amount { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+    .parked-summary-sub { font-size: 12px; opacity: .85; margin-top: 4px; }
+    .parked-type-section { margin: 18px 16px 0; }
+    .parked-type-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 0 2px; }
+    .parked-type-emoji { font-size: 18px; }
+    .parked-type-title { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+    .parked-type-total { font-size: 12px; font-weight: 700; color: var(--muted); }
+    .parked-item {
+      background: var(--glass-light);
+      backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--glass-border-light);
+      box-shadow: var(--glass-shadow-light);
+      border-radius: 16px; padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    body.dark .parked-item { background: var(--glass-dark); border-color: var(--glass-border-dark); box-shadow: var(--glass-shadow-dark); }
+    .parked-item-info { flex: 1; min-width: 0; }
+    .parked-item-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .parked-item-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .parked-item-amt { font-size: 15px; font-weight: 800; flex-shrink: 0; }
+    .parked-empty { text-align:center; color:var(--muted); padding:8px 0; font-size:12px; }
+    .parked-fab {
+      position: fixed; bottom: 100px; right: 20px;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border: none; color: #fff; font-size: 26px; font-weight: 300;
+      box-shadow: 0 6px 24px rgba(245,158,11,0.45);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Profile switcher modal */
+    .profile-switch-item {
+      display:flex; align-items:center; gap:12px;
+      padding: 14px 16px; border-radius: 14px;
+      background: var(--input-bg); border: 1.5px solid var(--input-border);
+      margin-bottom: 8px; cursor: pointer;
+    }
+    .profile-switch-item.active { background: rgba(124,110,246,0.18); border-color: rgba(124,110,246,0.55); }
+    .profile-switch-emoji { font-size: 26px; }
+    .profile-switch-name { flex:1; font-size:14px; font-weight:700; color:var(--text); }
+    .profile-switch-name small { display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:1px; }
 
     /* ── INVESTMENT PAGE ── */
     .inv-summary-bar {
@@ -1126,7 +1190,8 @@
     <h1 id="pageTitle">Dashboard</h1>
     <div style="font-size:9px;opacity:0.7;font-weight:500;margin-top:2px;letter-spacing:0.2px;">🕐 <!--BUILD_TIME--></div>
   </div>
-  <button class="month-pill" onclick="openMonthPicker()" id="monthPill">Apr 2026</button>
+  <button class="month-pill" onclick="openProfileSwitcher()" id="profilePill" title="Switch profile">💸 Personal ▾</button>
+  <button class="month-pill" onclick="openMonthPicker()" id="monthPill" style="display:none;">Apr 2026</button>
   <div class="settings-header-controls" id="settingsHeaderControls">
     <button class="settings-header-btn" id="syncHeaderBtn" onclick="signInGoogle()">☁️ Sign in</button>
     <div class="settings-header-toggle">
@@ -1141,6 +1206,9 @@
 
 <!-- ══════════ DASHBOARD ══════════ -->
 <div class="page active" id="page-home">
+  <div style="display:flex;justify-content:flex-end;padding:12px 16px 0;">
+    <button onclick="openMonthPicker()" style="background:rgba(124,110,246,0.12);border:1px solid rgba(124,110,246,0.3);border-radius:99px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:6px;" id="dashMonthChip">📅 Apr 2026 ▾</button>
+  </div>
   <div class="balance-card">
     <div class="balance-label">Net Balance</div>
     <div class="balance-amount" id="dashBalance">₹0</div>
@@ -1351,22 +1419,28 @@
   <div class="settings-section" style="margin-bottom:6px;">
     <div class="settings-section-title">Profiles</div>
   </div>
-  <div class="profile-grid">
+  <div class="profile-grid" style="grid-template-columns:1fr 1fr 1fr;gap:8px;">
     <!-- Profile 1 -->
-    <div class="profile-card active-profile" onclick="navigate('home')">
-      <div class="profile-badge">Active</div>
+    <div class="profile-card" onclick="switchProfile('personal')" id="profileCard_personal">
       <div class="profile-emoji">💸</div>
-      <div class="profile-name">Personal Finance</div>
-      <div class="profile-desc">Income, expenses & budgets</div>
-      <div class="profile-arrow">Open ›</div>
+      <div class="profile-name" style="font-size:12px;">Personal</div>
+      <div class="profile-desc" style="font-size:10px;">Income & expenses</div>
     </div>
     <!-- Profile 2 -->
-    <div class="profile-card p2" onclick="navigate('investments')">
+    <div class="profile-card p2" onclick="switchProfile('investments')" id="profileCard_investments">
       <div class="profile-emoji">📊</div>
-      <div class="profile-name">Investments</div>
-      <div class="profile-desc">Stocks, MF, FD, Gold & more</div>
-      <div class="profile-arrow">Open ›</div>
+      <div class="profile-name" style="font-size:12px;">Investments</div>
+      <div class="profile-desc" style="font-size:10px;">Stocks, MF, Gold</div>
     </div>
+    <!-- Profile 3 -->
+    <div class="profile-card p3" onclick="switchProfile('parked')" id="profileCard_parked">
+      <div class="profile-emoji">🏦</div>
+      <div class="profile-name" style="font-size:12px;" id="profile3Name">Other Person</div>
+      <div class="profile-desc" style="font-size:10px;">FD, Gold, Loans, Shop</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin:-8px 16px 18px;">
+    <button onclick="renameProfile3()" style="background:none;border:none;color:var(--primary);font-size:11px;font-weight:600;cursor:pointer;">✏️ Rename Profile 3</button>
   </div>
 
   <div class="settings-section">
@@ -1664,6 +1738,64 @@
 
     <button class="btn-primary" onclick="saveInvestment()" id="invSaveBtn">Save Investment</button>
     <button class="btn-secondary" style="margin-top:8px;display:none;" id="invDeleteBtn" onclick="deleteCurrentInvestment()">Delete</button>
+  </div>
+</div>
+
+<!-- ══════════ PROFILE 3: PARKED MONEY ══════════ -->
+<div class="page page-pad" id="page-parked">
+  <div class="parked-summary">
+    <div class="parked-summary-label" id="parkedOwnerLabel">🏦 Other Person · Total Parked</div>
+    <div class="parked-summary-amount" id="parkedTotal">₹0</div>
+    <div class="parked-summary-sub" id="parkedCount">0 entries</div>
+  </div>
+
+  <div id="parkedSections"></div>
+
+  <button class="parked-fab" onclick="openParkedModal()">+</button>
+</div>
+
+<!-- Parked Money modal -->
+<div class="modal-overlay" id="parkedModal" onclick="closeParkedModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="parkedModalTitle">Add Entry</div>
+
+    <div class="form-group">
+      <label class="form-label">Where is the money parked?</label>
+      <div class="cat-grid" id="parkedTypeGrid"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" id="parkedNameLabel">Name / Description</label>
+      <input type="text" class="form-input" id="parkedName" placeholder="e.g., SBI FD, Loan to Ravi, Saravana Shop" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Amount (₹)</label>
+      <input type="number" class="form-input" id="parkedAmount" placeholder="0" inputmode="decimal" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-input" id="parkedDate" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes (optional)</label>
+      <input type="text" class="form-input" id="parkedNotes" placeholder="interest rate, return date, terms..." />
+    </div>
+
+    <button class="btn-primary" onclick="saveParked()">Save</button>
+    <button class="btn-secondary" style="margin-top:8px;display:none;" id="parkedDeleteBtn" onclick="deleteCurrentParked()">Delete</button>
+  </div>
+</div>
+
+<!-- Profile Switcher modal -->
+<div class="modal-overlay" id="profileSwitchModal" onclick="closeProfileSwitcher(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Switch Profile</div>
+    <div id="profileSwitchList"></div>
   </div>
 </div>
 
@@ -2093,6 +2225,8 @@ function startCloudSync(uid) {
     state.familyMembers  = d.familyMembers  || [];
     state.purchases      = d.purchases      || [];
     state.reminders      = d.reminders      || [];
+    state.parkedMoney    = d.parkedMoney    || [];
+    state.profile3Name   = d.profile3Name   || state.profile3Name || 'Other Person';
     if (Array.isArray(d.investments)) {
       investments = d.investments;
       localStorage.setItem('investmentState', JSON.stringify(investments));
@@ -2116,6 +2250,7 @@ function startCloudSync(uid) {
       if (active.id==='page-settings')  renderSettings();
       if (active.id==='page-purchases') renderPurchases();
       if (active.id==='page-investments') renderInvestments();
+      if (active.id==='page-parked')      renderParked();
     }
     isSyncingFromCloud = false;
   }, err => console.error('Sync error:', err));
@@ -2136,6 +2271,8 @@ function saveToCloud() {
       familyMembers:   state.familyMembers,
       purchases:       state.purchases,
       reminders:       state.reminders,
+      parkedMoney:     state.parkedMoney,
+      profile3Name:    state.profile3Name,
       investments:     (typeof investments !== 'undefined' ? investments : []),
     }).catch(e => console.error('Cloud save error:', e));
   }, 600);
@@ -2200,6 +2337,8 @@ let state = {
   familyMembers: [],
   purchases: [],
   reminders: [],
+  parkedMoney: [],
+  profile3Name: 'Other Person',
   darkMode: false,
   currentMonth: new Date().getMonth(),
   currentYear: new Date().getFullYear(),
@@ -2230,6 +2369,8 @@ function load() {
     state.bankTags       = p.bankTags       || ['Standard Chartered', 'Axis Bank', 'HDFC'];
     state.purchases      = p.purchases      || [];
     state.reminders      = p.reminders      || [];
+    state.parkedMoney    = p.parkedMoney    || [];
+    state.profile3Name   = p.profile3Name   || 'Other Person';
     state.darkMode       = p.darkMode       || false;
   }
   if (Object.keys(state.allocations).length === 0)
@@ -2248,6 +2389,8 @@ function save() {
     subCategories: state.subCategories, familyMembers: state.familyMembers,
     bankTags: state.bankTags, purchases: state.purchases,
     reminders: state.reminders,
+    parkedMoney: state.parkedMoney,
+    profile3Name: state.profile3Name,
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
   }));
@@ -2273,7 +2416,15 @@ function accountBalance(id) {
 }
 
 // ══════════════════ NAVIGATION ══════════════════
-const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings',purchases:'My Purchases',investments:'Investments'};
+const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings',purchases:'My Purchases',investments:'Investments',parked:'Parked Money'};
+const PARKED_TYPES = [
+  {id:'fd',          emoji:'🔒', name:'FD',          color:'#FBBF24'},
+  {id:'gold',        emoji:'🥇', name:'Gold',        color:'#F59E0B'},
+  {id:'loan',        emoji:'🤝', name:'Loan Given',  color:'#60A5FA'},
+  {id:'partnership', emoji:'🏪', name:'Shop/Partner',color:'#A78BFA'},
+  {id:'savings',     emoji:'💰', name:'Savings',     color:'#34D399'},
+  {id:'other',       emoji:'📦', name:'Other',       color:'#9CA3AF'},
+];
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -2284,6 +2435,12 @@ function navigate(page) {
   document.getElementById('monthPill').style.display = ['home','txns','charts'].includes(page)?'':'none';
   if (page==='purchases') renderPurchases();
   if (page==='investments') { renderInvestments(); }
+  if (page==='parked') { renderParked(); }
+  // Update the profile pill in the header to reflect current profile context
+  updateProfilePill(page);
+  // Show month chip only on Personal Finance home
+  const dashChip = document.getElementById('dashMonthChip');
+  if (dashChip) dashChip.style.display = (page==='home') ? '' : 'none';
   const shc = document.getElementById('settingsHeaderControls');
   if (page === 'settings') shc.classList.add('visible'); else shc.classList.remove('visible');
   // Close any open dropdown
@@ -2317,7 +2474,9 @@ function selectMonth(m,y) {
   if(a.id==='page-charts') renderCharts();
 }
 function updateMonthPill() {
-  document.getElementById('monthPill').textContent = MONTHS[state.currentMonth]+' '+state.currentYear;
+  const label = MONTHS[state.currentMonth]+' '+state.currentYear;
+  const mp = document.getElementById('monthPill'); if (mp) mp.textContent = label;
+  const dc = document.getElementById('dashMonthChip'); if (dc) dc.textContent = '📅 ' + label + ' ▾';
 }
 
 // ══════════════════ DARK MODE ══════════════════
@@ -4326,11 +4485,182 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') scheduleAllReminders();
 });
 
+// ══════════════════ PROFILE 3: PARKED MONEY ══════════════════
+let _parkedEditingId = null;
+let _parkedSelectedType = 'fd';
+
+function renderParkedTypeGrid() {
+  document.getElementById('parkedTypeGrid').innerHTML = PARKED_TYPES.map(t =>
+    `<button class="cat-btn ${_parkedSelectedType===t.id?'selected':''}" onclick="selectParkedType('${t.id}')">
+      <span class="cat-emoji">${t.emoji}</span><span class="cat-name">${t.name}</span>
+    </button>`
+  ).join('');
+  // Update name placeholder based on type
+  const lbl = document.getElementById('parkedNameLabel');
+  const inp = document.getElementById('parkedName');
+  if (_parkedSelectedType === 'loan')        { lbl.textContent = 'Lent to (name)'; inp.placeholder = 'e.g., Ravi, Cousin Suresh'; }
+  else if (_parkedSelectedType === 'partnership') { lbl.textContent = 'Business / Shop name'; inp.placeholder = 'e.g., Saravana Stores'; }
+  else if (_parkedSelectedType === 'fd')     { lbl.textContent = 'Bank / FD name'; inp.placeholder = 'e.g., SBI FD 2026'; }
+  else if (_parkedSelectedType === 'gold')   { lbl.textContent = 'Description'; inp.placeholder = 'e.g., 22K Chain 10g'; }
+  else { lbl.textContent = 'Name / Description'; inp.placeholder = ''; }
+}
+function selectParkedType(id) { _parkedSelectedType = id; renderParkedTypeGrid(); }
+
+function openParkedModal(id) {
+  _parkedEditingId = id || null;
+  const p = id ? state.parkedMoney.find(x => x.id === id) : null;
+  document.getElementById('parkedModalTitle').textContent = p ? 'Edit Entry' : 'Add Entry';
+  document.getElementById('parkedDeleteBtn').style.display = p ? '' : 'none';
+  _parkedSelectedType = p ? p.type : 'fd';
+  document.getElementById('parkedName').value   = p ? p.name : '';
+  document.getElementById('parkedAmount').value = p ? p.amount : '';
+  document.getElementById('parkedDate').value   = p ? p.date : new Date().toISOString().slice(0,10);
+  document.getElementById('parkedNotes').value  = p ? (p.notes || '') : '';
+  renderParkedTypeGrid();
+  document.getElementById('parkedModal').classList.add('open');
+}
+function closeParkedModal(e) {
+  if (!e || e.target === document.getElementById('parkedModal'))
+    document.getElementById('parkedModal').classList.remove('open');
+}
+function saveParked() {
+  const name   = document.getElementById('parkedName').value.trim();
+  const amount = parseFloat(document.getElementById('parkedAmount').value) || 0;
+  const date   = document.getElementById('parkedDate').value;
+  const notes  = document.getElementById('parkedNotes').value.trim();
+  if (!name)     { alert('Please enter a name/description'); return; }
+  if (amount<=0) { alert('Please enter an amount'); return; }
+
+  if (_parkedEditingId) {
+    const p = state.parkedMoney.find(x => x.id === _parkedEditingId);
+    if (p) Object.assign(p, { type: _parkedSelectedType, name, amount, date, notes });
+  } else {
+    state.parkedMoney.push({ id: uid(), type: _parkedSelectedType, name, amount, date, notes, createdAt: Date.now() });
+  }
+  save();
+  renderParked();
+  closeParkedModal();
+}
+function deleteCurrentParked() {
+  if (!_parkedEditingId) return;
+  if (!confirm('Delete this entry?')) return;
+  state.parkedMoney = state.parkedMoney.filter(p => p.id !== _parkedEditingId);
+  save();
+  renderParked();
+  closeParkedModal();
+}
+
+function renderParked() {
+  // Owner label
+  const ownerLabel = document.getElementById('parkedOwnerLabel');
+  if (ownerLabel) ownerLabel.textContent = `🏦 ${state.profile3Name || 'Other Person'} · Total Parked`;
+  const total = (state.parkedMoney || []).reduce((s,p) => s + (p.amount || 0), 0);
+  document.getElementById('parkedTotal').textContent = fmt(total);
+  document.getElementById('parkedCount').textContent =
+    `${(state.parkedMoney || []).length} ${(state.parkedMoney||[]).length === 1 ? 'entry' : 'entries'}`;
+
+  // Group by type
+  const sections = PARKED_TYPES.map(t => {
+    const items = (state.parkedMoney || []).filter(p => p.type === t.id);
+    if (!items.length) return '';
+    const subtotal = items.reduce((s,i) => s + (i.amount||0), 0);
+    return `
+      <div class="parked-type-section">
+        <div class="parked-type-header">
+          <span class="parked-type-emoji">${t.emoji}</span>
+          <span class="parked-type-title">${t.name}</span>
+          <span class="parked-type-total">${fmt(subtotal)}</span>
+        </div>
+        ${items.map(p => `
+          <div class="parked-item" onclick="openParkedModal('${p.id}')" style="cursor:pointer;">
+            <div class="parked-item-info">
+              <div class="parked-item-name">${escapeHtml(p.name)}</div>
+              <div class="parked-item-meta">${p.date || ''}${p.notes ? ' · ' + escapeHtml(p.notes) : ''}</div>
+            </div>
+            <div class="parked-item-amt">${fmt(p.amount||0)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).filter(Boolean).join('');
+
+  const sectionsEl = document.getElementById('parkedSections');
+  sectionsEl.innerHTML = sections || '<div class="parked-type-section"><div class="parked-empty" style="padding:30px 16px;">No entries yet.<br>Tap <b>+</b> to add where you parked the money.</div></div>';
+}
+
+function renameProfile3() {
+  const v = prompt('Rename Profile 3:', state.profile3Name || 'Other Person');
+  if (v == null) return;
+  const n = String(v).trim();
+  if (!n) return;
+  state.profile3Name = n;
+  save();
+  // Update Settings card label
+  const lbl = document.getElementById('profile3Name'); if (lbl) lbl.textContent = n;
+  renderParked();
+  updateProfilePill(currentPage());
+}
+
+// ── Profile switcher in header ──
+const PROFILES = [
+  { id:'personal',    emoji:'💸', name:'Personal Finance', desc:'Income, expenses & budgets', page:'home' },
+  { id:'investments', emoji:'📊', name:'Investments',      desc:'Stocks, MF, FD, Gold & more', page:'investments' },
+  { id:'parked',      emoji:'🏦', name:'Other Person',     desc:'FD, Gold, Loans, Shop',       page:'parked' },
+];
+
+function currentPage() {
+  const a = document.querySelector('.page.active');
+  return a ? a.id.replace('page-','') : 'home';
+}
+
+function currentProfile() {
+  const p = currentPage();
+  if (['investments'].includes(p)) return 'investments';
+  if (['parked'].includes(p)) return 'parked';
+  return 'personal';
+}
+
+function updateProfilePill(page) {
+  const pill = document.getElementById('profilePill');
+  if (!pill) return;
+  let pid = 'personal';
+  if (page === 'investments') pid = 'investments';
+  else if (page === 'parked') pid = 'parked';
+  const prof = PROFILES.find(p => p.id === pid);
+  const displayName = pid === 'parked' ? (state.profile3Name || 'Other') : prof.name.split(' ')[0];
+  pill.textContent = `${prof.emoji} ${displayName} ▾`;
+}
+
+function openProfileSwitcher() {
+  const cur = currentProfile();
+  const list = document.getElementById('profileSwitchList');
+  list.innerHTML = PROFILES.map(p => {
+    const displayName = p.id === 'parked' ? (state.profile3Name || p.name) : p.name;
+    return `<div class="profile-switch-item ${cur===p.id?'active':''}" onclick="switchProfile('${p.id}')">
+      <span class="profile-switch-emoji">${p.emoji}</span>
+      <div class="profile-switch-name">${displayName}<small>${p.desc}</small></div>
+      ${cur===p.id ? '<span style="color:var(--primary);font-weight:700;">●</span>' : '<span style="color:var(--muted);">›</span>'}
+    </div>`;
+  }).join('');
+  document.getElementById('profileSwitchModal').classList.add('open');
+}
+function closeProfileSwitcher(e) {
+  if (!e || e.target === document.getElementById('profileSwitchModal'))
+    document.getElementById('profileSwitchModal').classList.remove('open');
+}
+function switchProfile(id) {
+  const prof = PROFILES.find(p => p.id === id);
+  if (!prof) return;
+  closeProfileSwitcher();
+  navigate(prof.page);
+}
+
 // ══════════════════ INIT ══════════════════
 load();
 loadInvestments();
 renderDashboard();
 updateMonthPill();
+updateProfilePill('home');
 scheduleAllReminders();
 if (notifSupported() && Notification.permission === 'default') {
   // Soft prompt: show only when user opens settings (handled in openReminderModal too)
