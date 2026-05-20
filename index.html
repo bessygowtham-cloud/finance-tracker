@@ -19,59 +19,70 @@
 
     /* ── MESH GRADIENT BACKGROUND ── */
     :root {
-      --primary: #7C6EF6;
-      --primary-dark: #5A52D5;
-      --income: #34D399;
-      --expense: #F87171;
-      --radius: 20px;
-      --glass-light: rgba(255,255,255,0.55);
-      --glass-border-light: rgba(255,255,255,0.7);
-      --glass-shadow-light: 0 4px 24px rgba(124,110,246,0.10), inset 0 1px 0 rgba(255,255,255,0.8);
-      --glass-dark: rgba(255,255,255,0.07);
-      --glass-border-dark: rgba(255,255,255,0.12);
-      --glass-shadow-dark: 0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
-      --text: #1a1040;
-      --muted: #6b6490;
-      --border: rgba(200,190,255,0.3);
-      --input-bg: rgba(255,255,255,0.5);
-      --input-border: rgba(255,255,255,0.65);
-      --nav-bg: rgba(255,255,255,0.65);
-      --nav-border: rgba(255,255,255,0.8);
-      --modal-bg: rgba(245,242,255,0.85);
+      --primary: #6366F1;
+      --primary-dark: #4F46E5;
+      --income: #10B981;
+      --expense: #EF4444;
+      --radius: 18px;
+      --ease: cubic-bezier(.4,0,.2,1);
+      --ease-out: cubic-bezier(.16,1,.3,1);
+      --glass-light: rgba(255,255,255,0.78);
+      --glass-border-light: rgba(229,231,235,0.8);
+      --glass-shadow-light: 0 1px 3px rgba(15,23,42,0.04), 0 8px 28px rgba(15,23,42,0.06);
+      --glass-dark: rgba(30,30,45,0.55);
+      --glass-border-dark: rgba(255,255,255,0.08);
+      --glass-shadow-dark: 0 2px 6px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.25);
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: rgba(226,232,240,0.9);
+      --input-bg: rgba(255,255,255,0.9);
+      --input-border: rgba(226,232,240,0.95);
+      --nav-bg: rgba(255,255,255,0.82);
+      --nav-border: rgba(226,232,240,0.6);
+      --modal-bg: rgba(255,255,255,0.96);
     }
+    /* Global smooth transitions */
+    * { transition: background-color .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease), box-shadow .25s var(--ease); }
+    button, .card, .glass, .settings-card, .balance-stat, .account-chip, .filter-chip, .nav-btn, .cat-btn, .modal-sheet, .profile-card, .inv-stat-card, .inv-item, .parked-item, .settings-row {
+      transition: background-color .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease), box-shadow .25s var(--ease), transform .2s var(--ease-out), opacity .2s var(--ease);
+    }
+    button:active, .cat-btn:active, .account-chip:active, .filter-chip:active, .profile-card:active, .nav-btn:active, .settings-row:active { transform: scale(0.97); }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif;
       color: var(--text);
       min-height: 100vh;
       padding-bottom: 110px;
       font-size: 15px;
-      background-color: #ddd8ff;
+      background-color: #fafbfc;
       background-image:
-        radial-gradient(ellipse at 15% 15%, rgba(167,139,250,0.7) 0%, transparent 45%),
-        radial-gradient(ellipse at 85% 10%, rgba(196,181,253,0.5) 0%, transparent 40%),
-        radial-gradient(ellipse at 70% 80%, rgba(251,191,254,0.45) 0%, transparent 45%),
-        radial-gradient(ellipse at 10% 80%, rgba(165,180,252,0.55) 0%, transparent 40%),
-        radial-gradient(ellipse at 50% 45%, rgba(248,200,255,0.3) 0%, transparent 55%);
+        radial-gradient(ellipse 800px 600px at 12% 8%,  rgba(124,110,246,0.10) 0%, transparent 60%),
+        radial-gradient(ellipse 700px 500px at 88% 12%, rgba(96,165,250,0.08)  0%, transparent 60%),
+        radial-gradient(ellipse 700px 600px at 78% 92%, rgba(251,191,254,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 600px 500px at 8%  88%, rgba(167,139,250,0.06) 0%, transparent 60%);
       background-attachment: fixed;
-      transition: background-color .3s;
+      animation: bgFloat 30s ease-in-out infinite alternate;
+      transition: background-color .4s ease;
+    }
+    @keyframes bgFloat {
+      0%   { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%; }
+      100% { background-position: 4% 3%, 96% 4%, 96% 97%, 4% 97%; }
     }
     body.dark {
       --text: #f0eeff;
       --muted: #9990c8;
-      --border: rgba(255,255,255,0.1);
-      --input-bg: rgba(255,255,255,0.07);
-      --input-border: rgba(255,255,255,0.12);
-      --nav-bg: rgba(15,12,30,0.8);
-      --nav-border: rgba(255,255,255,0.08);
+      --border: rgba(255,255,255,0.08);
+      --input-bg: rgba(255,255,255,0.05);
+      --input-border: rgba(255,255,255,0.1);
+      --nav-bg: rgba(15,12,30,0.78);
+      --nav-border: rgba(255,255,255,0.06);
       --modal-bg: rgba(18,14,35,0.92);
-      background-color: #0d0b1a;
+      background-color: #0a0a12;
       background-image:
-        radial-gradient(ellipse at 15% 15%, rgba(109,40,217,0.45) 0%, transparent 45%),
-        radial-gradient(ellipse at 85% 10%, rgba(124,58,237,0.3) 0%, transparent 40%),
-        radial-gradient(ellipse at 70% 80%, rgba(167,139,250,0.2) 0%, transparent 45%),
-        radial-gradient(ellipse at 10% 80%, rgba(79,70,229,0.35) 0%, transparent 40%),
-        radial-gradient(ellipse at 50% 45%, rgba(139,92,246,0.15) 0%, transparent 55%);
+        radial-gradient(ellipse 800px 600px at 12% 8%,  rgba(109,40,217,0.20)  0%, transparent 60%),
+        radial-gradient(ellipse 700px 500px at 88% 12%, rgba(99,102,241,0.14)  0%, transparent 60%),
+        radial-gradient(ellipse 700px 600px at 78% 92%, rgba(167,139,250,0.10) 0%, transparent 60%),
+        radial-gradient(ellipse 600px 500px at 8%  88%, rgba(79,70,229,0.16)   0%, transparent 60%);
     }
 
     /* ── GLASS BASE ── */
@@ -90,13 +101,13 @@
 
     /* ── TOP NAV ── */
     .top-nav {
-      background: rgba(124,110,246,0.72);
-      backdrop-filter: blur(30px) saturate(200%);
-      -webkit-backdrop-filter: blur(30px) saturate(200%);
-      border-bottom: 1px solid rgba(255,255,255,0.25);
-      box-shadow: 0 2px 20px rgba(124,110,246,0.25), inset 0 1px 0 rgba(255,255,255,0.3);
-      padding: 26px 16px 10px;
-      color: #fff;
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border-bottom: 1px solid rgba(226,232,240,0.7);
+      box-shadow: 0 1px 0 rgba(15,23,42,0.04);
+      padding: 26px 16px 12px;
+      color: var(--text);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -105,10 +116,10 @@
       z-index: 50;
     }
     body.dark .top-nav {
-      background: rgba(60,45,120,0.75);
-      border-bottom-color: rgba(255,255,255,0.1);
+      background: rgba(15,15,25,0.78);
+      border-bottom-color: rgba(255,255,255,0.06);
     }
-    .top-nav h1 { font-size: 15px; font-weight: 700; letter-spacing: -.1px; }
+    .top-nav h1 { font-size: 16px; font-weight: 700; letter-spacing: -.3px; color: var(--text); }
     .settings-header-controls {
       display: none;
       align-items: center;
@@ -116,14 +127,13 @@
     }
     .settings-header-controls.visible { display: flex; }
     .settings-header-btn {
-      background: rgba(255,255,255,0.22);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.35);
+      background: rgba(99,102,241,0.10);
+      border: 1px solid rgba(99,102,241,0.25);
       border-radius: 99px;
-      color: #fff;
+      color: var(--primary);
       font-size: 11px;
       font-weight: 700;
-      padding: 3px 10px;
+      padding: 4px 12px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -132,35 +142,49 @@
     }
     .settings-header-btn:active { opacity: 0.8; }
     .settings-header-toggle {
-      background: rgba(255,255,255,0.22);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.35);
+      background: rgba(15,23,42,0.05);
+      border: 1px solid rgba(15,23,42,0.08);
       border-radius: 99px;
-      padding: 3px 8px;
+      padding: 4px 10px;
       display: flex;
       align-items: center;
       gap: 5px;
       font-size: 11px;
       font-weight: 700;
-      color: #fff;
+      color: var(--text);
     }
+    body.dark .settings-header-toggle { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); }
     .month-pill {
-      background: rgba(255,255,255,0.22);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.35);
+      background: rgba(99,102,241,0.10);
+      border: 1px solid rgba(99,102,241,0.25);
       border-radius: 99px;
-      padding: 3px 12px;
-      font-size: 11px;
-      font-weight: 600;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 700;
       cursor: pointer;
-      color: #fff;
-      letter-spacing: .2px;
+      color: var(--primary);
+      letter-spacing: .1px;
     }
+    .month-pill:active { background: rgba(99,102,241,0.18); }
 
     /* ── PAGES ── */
     .page { display: none; padding: 0 0 20px; }
-    .page.active { display: block; }
+    .page.active {
+      display: block;
+      animation: pageIn .4s var(--ease-out);
+    }
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
     .page-pad { padding-top: 16px; }
+    /* Card entry shimmer */
+    .card, .settings-card, .inv-stat-card, .parked-item, .inv-item {
+      will-change: transform;
+    }
+    /* Modal smooth open */
+    .modal-overlay { transition: opacity .25s var(--ease); }
+    .modal-sheet { transition: transform .35s var(--ease-out); }
 
     /* ── CARDS ── */
     .card {
@@ -1259,7 +1283,7 @@
 <div class="top-nav">
   <div>
     <h1 id="pageTitle">Dashboard</h1>
-    <div style="font-size:9px;opacity:0.7;font-weight:500;margin-top:2px;letter-spacing:0.2px;">🕐 <!--BUILD_TIME--></div>
+    <div style="font-size:9px;color:var(--muted);font-weight:500;margin-top:2px;letter-spacing:0.2px;">🕐 <!--BUILD_TIME--></div>
   </div>
   <button class="month-pill" onclick="openProfileSwitcher()" id="profilePill" title="Switch profile">💸 Personal ▾</button>
   <button class="month-pill" onclick="openMonthPicker()" id="monthPill" style="display:none;">Apr 2026</button>
