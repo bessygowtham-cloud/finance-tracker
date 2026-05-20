@@ -2522,6 +2522,8 @@ function navigate(page) {
   if (page==='charts')   renderCharts();
   if (page==='settings') renderSettings();
   updateMonthPill();
+  // Persist current page so refresh stays here
+  try { localStorage.setItem('currentPage', page); } catch(_) {}
 }
 
 // ══════════════════ MONTH PICKER ══════════════════
@@ -4783,6 +4785,17 @@ updateProfilePill('home');
 scheduleAllReminders();
 injectModalCloseButtons();
 initSettingsAccordion();
+
+// Restore last visited page (so refresh doesn't always send to home)
+(function restoreLastPage() {
+  try {
+    const last = localStorage.getItem('currentPage');
+    const validPages = ['home','add','txns','charts','settings','purchases','investments','parked'];
+    if (last && validPages.includes(last) && last !== 'home') {
+      navigate(last);
+    }
+  } catch(_) {}
+})();
 if (notifSupported() && Notification.permission === 'default') {
   // Soft prompt: show only when user opens settings (handled in openReminderModal too)
 }
