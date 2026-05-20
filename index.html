@@ -913,16 +913,47 @@
     .recurring-amount.income { color: var(--income); }
     .recurring-amount.expense { color: var(--expense); }
 
-    /* ── ACCOUNT ITEM ── */
-    .account-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 14px 16px; border-bottom: 1px solid var(--border);
+    /* ── ACCOUNT INLINE LAYOUT ── */
+    .accounts-inline {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      padding: 4px 0;
     }
-    .account-item:last-child { border-bottom: none; }
-    .account-icon { font-size: 26px; width: 40px; text-align: center; }
-    .account-info { flex: 1; }
-    .account-name { font-size: 14px; font-weight: 600; }
-    .account-balance { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .account-inline-item {
+      padding: 12px 10px;
+      border-radius: 14px;
+      background: rgba(99,102,241,0.05);
+      border: 1px solid rgba(99,102,241,0.15);
+      text-align: center;
+    }
+    body.dark .account-inline-item { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08); }
+    .account-inline-name { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .account-inline-balance { font-size: 14px; font-weight: 800; color: var(--text); letter-spacing: -.3px; }
+    .account-inline-balance.positive { color: var(--income); }
+    .account-inline-balance.negative { color: var(--expense); }
+
+    /* Credit card sub-list */
+    .credit-cards-section { margin-top: 14px; }
+    .credit-cards-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; padding-left: 2px; }
+    .credit-cards-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .credit-card-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25);
+      color: var(--text); font-size: 12px; font-weight: 600;
+      padding: 5px 10px; border-radius: 99px;
+    }
+    .credit-card-chip .del {
+      cursor: pointer; color: var(--muted); font-size: 14px; line-height: 1;
+      padding: 0 2px;
+    }
+    .credit-card-chip .del:hover { color: var(--expense); }
+    .credit-card-add {
+      background: rgba(99,102,241,0.12); border: 1px dashed rgba(99,102,241,0.45);
+      color: var(--primary); font-size: 12px; font-weight: 700;
+      padding: 5px 12px; border-radius: 99px;
+      cursor: pointer;
+    }
 
     /* ── BOTTOM NAV ── */
     .bottom-nav {
@@ -1555,7 +1586,7 @@
 
   <div class="settings-section">
     <div class="settings-section-title">Accounts</div>
-    <div class="settings-card" id="accountsList"></div>
+    <div id="accountsList"></div>
   </div>
 
   <div class="settings-section">
@@ -2323,6 +2354,7 @@ function startCloudSync(uid) {
     state.reminders      = d.reminders      || [];
     state.parkedMoney    = d.parkedMoney    || [];
     state.profile3Name   = d.profile3Name   || state.profile3Name || 'Other Person';
+    state.creditCards    = d.creditCards    || state.creditCards || ['HDFC', 'Axis', 'ICICI'];
     if (Array.isArray(d.investments)) {
       investments = d.investments;
       localStorage.setItem('investmentState', JSON.stringify(investments));
@@ -2369,6 +2401,7 @@ function saveToCloud() {
       reminders:       state.reminders,
       parkedMoney:     state.parkedMoney,
       profile3Name:    state.profile3Name,
+      creditCards:     state.creditCards,
       investments:     (typeof investments !== 'undefined' ? investments : []),
     }).catch(e => console.error('Cloud save error:', e));
   }, 600);
@@ -2445,6 +2478,7 @@ let state = {
   addAccountId: 'wallet',
   customCatType: 'expense',
   bankTags: ['Standard Chartered', 'Axis Bank', 'HDFC'],
+  creditCards: ['HDFC', 'Axis', 'ICICI'],
 };
 
 // ══════════════════ PERSISTENCE ══════════════════
@@ -2463,6 +2497,7 @@ function load() {
     state.subCategories  = p.subCategories  || { food:[], transport:[], health:[], bills:[] };
     state.familyMembers  = p.familyMembers  || [];
     state.bankTags       = p.bankTags       || ['Standard Chartered', 'Axis Bank', 'HDFC'];
+    state.creditCards    = p.creditCards    || ['HDFC', 'Axis', 'ICICI'];
     state.purchases      = p.purchases      || [];
     state.reminders      = p.reminders      || [];
     state.parkedMoney    = p.parkedMoney    || [];
@@ -2483,7 +2518,8 @@ function save() {
     recurring: state.recurring, accounts: state.accounts,
     customCats: state.customCats, goals: state.goals,
     subCategories: state.subCategories, familyMembers: state.familyMembers,
-    bankTags: state.bankTags, purchases: state.purchases,
+    bankTags: state.bankTags, creditCards: state.creditCards,
+    purchases: state.purchases,
     reminders: state.reminders,
     parkedMoney: state.parkedMoney,
     profile3Name: state.profile3Name,
@@ -3074,16 +3110,31 @@ function renderCharts() {
 
 // ══════════════════ SETTINGS ══════════════════
 function renderSettings() {
-  document.getElementById('accountsList').innerHTML = state.accounts.map(a=>{
-    const bal=accountBalance(a.id);
-    return `<div class="account-item">
-      <div class="account-icon">${a.emoji}</div>
-      <div class="account-info">
-        <div class="account-name">${a.name}</div>
-        <div class="account-balance">${bal>=0?'+':''}${fmt(bal)}</div>
-      </div>
+  // Inline 3-column layout: Cash, Bank Account, Credit Card (no icons)
+  const inlineHtml = state.accounts.map(a => {
+    const bal = accountBalance(a.id);
+    const cls = bal > 0 ? 'positive' : (bal < 0 ? 'negative' : '');
+    const sign = bal >= 0 ? '+' : '-';
+    return `<div class="account-inline-item">
+      <div class="account-inline-name">${a.name}</div>
+      <div class="account-inline-balance ${cls}">${sign}${fmt(bal)}</div>
     </div>`;
   }).join('');
+  // Credit cards sub-list
+  const cards = (state.creditCards || []);
+  const cardChips = cards.map(c => `
+    <span class="credit-card-chip">${c}<span class="del" onclick="removeCreditCard('${c.replace(/'/g,"\\'")}')">×</span></span>
+  `).join('');
+  document.getElementById('accountsList').innerHTML = `
+    <div class="accounts-inline">${inlineHtml}</div>
+    <div class="credit-cards-section">
+      <div class="credit-cards-label">💳 Credit Cards</div>
+      <div class="credit-cards-chips">
+        ${cardChips}
+        <span class="credit-card-add" onclick="addCreditCardPrompt()">+ Add card</span>
+      </div>
+    </div>
+  `;
   renderAllocEdit();
   renderRecurringList();
   renderCustomCatList();
@@ -4804,6 +4855,25 @@ function initSettingsAccordion() {
       try { localStorage.setItem('settingsAccordionState', JSON.stringify(saved)); } catch(_) {}
     });
   });
+}
+
+// ══════════════════ CREDIT CARDS ══════════════════
+function addCreditCardPrompt() {
+  const v = prompt('Add credit card (e.g., Axis, HDFC, ICICI, SBI):');
+  if (v == null) return;
+  const name = String(v).trim();
+  if (!name) return;
+  if (!state.creditCards) state.creditCards = [];
+  if (state.creditCards.includes(name)) { alert('That card is already in the list.'); return; }
+  state.creditCards.push(name);
+  save();
+  renderSettings();
+}
+function removeCreditCard(name) {
+  if (!confirm(`Remove "${name}" from credit cards?`)) return;
+  state.creditCards = (state.creditCards || []).filter(c => c !== name);
+  save();
+  renderSettings();
 }
 
 // ══════════════════ INJECT CLOSE-X BUTTONS INTO ALL MODALS ══════════════════
