@@ -1277,8 +1277,9 @@
 
 <!-- ══════════ DASHBOARD ══════════ -->
 <div class="page active" id="page-home">
-  <div style="display:flex;justify-content:flex-end;padding:12px 16px 0;">
-    <button onclick="openMonthPicker()" style="background:rgba(124,110,246,0.12);border:1px solid rgba(124,110,246,0.3);border-radius:99px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:6px;" id="dashMonthChip">📅 Apr 2026 ▾</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px 0;gap:8px;">
+    <button id="jumpToTodayBtn" onclick="jumpToCurrentMonth()" style="display:none;background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.35);border-radius:99px;padding:6px 12px;font-size:11px;font-weight:700;color:#dc2626;cursor:pointer;">⚠️ Viewing past month · Tap to view today</button>
+    <button onclick="openMonthPicker()" style="background:rgba(124,110,246,0.12);border:1px solid rgba(124,110,246,0.3);border-radius:99px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:6px;margin-left:auto;" id="dashMonthChip">📅 Apr 2026 ▾</button>
   </div>
   <div class="balance-card">
     <div class="balance-label">Net Balance</div>
@@ -2550,6 +2551,22 @@ function updateMonthPill() {
   const label = MONTHS[state.currentMonth]+' '+state.currentYear;
   const mp = document.getElementById('monthPill'); if (mp) mp.textContent = label;
   const dc = document.getElementById('dashMonthChip'); if (dc) dc.textContent = '📅 ' + label + ' ▾';
+  // Show "Viewing past month" warning if currentMonth/Year is not today's
+  const today = new Date();
+  const isStale = state.currentMonth !== today.getMonth() || state.currentYear !== today.getFullYear();
+  const btn = document.getElementById('jumpToTodayBtn');
+  if (btn) btn.style.display = isStale ? '' : 'none';
+}
+function jumpToCurrentMonth() {
+  const today = new Date();
+  state.currentMonth = today.getMonth();
+  state.currentYear  = today.getFullYear();
+  save();
+  updateMonthPill();
+  const a = document.querySelector('.page.active');
+  if (a && a.id === 'page-home')  renderDashboard();
+  if (a && a.id === 'page-txns')  renderTxns();
+  if (a && a.id === 'page-charts') renderCharts();
 }
 
 // ══════════════════ DARK MODE ══════════════════
@@ -2718,7 +2735,13 @@ function saveTransaction() {
     bank: state.selectedBank || '',
     note, date, account: state.addAccountId,
   });
-  save(); navigate('home');
+  // Auto-switch the viewed month to match this transaction's date so user always sees what they just added
+  const d = new Date(date);
+  state.currentMonth = d.getMonth();
+  state.currentYear  = d.getFullYear();
+  save();
+  updateMonthPill();
+  navigate('home');
 }
 function deleteTxn(id) {
   if (!confirm('Delete this transaction?')) return;
