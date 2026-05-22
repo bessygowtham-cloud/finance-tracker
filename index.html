@@ -1386,8 +1386,10 @@
     <h1 id="pageTitle">Dashboard</h1>
     <div style="font-size:9px;color:var(--muted);font-weight:500;margin-top:2px;letter-spacing:0.2px;">🕐 <!--BUILD_TIME--></div>
   </div>
-  <button class="month-pill" onclick="openProfileSwitcher()" id="profilePill" title="Switch profile">💸 Personal ▾</button>
-  <button class="month-pill" onclick="openMonthPicker()" id="monthPill" style="display:none;">Apr 2026</button>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <button class="month-pill" onclick="openMonthPicker()" id="monthPill" style="display:none;">📅 Apr 2026 ▾</button>
+    <button class="month-pill" onclick="openProfileSwitcher()" id="profilePill" title="Switch profile">💸 Personal ▾</button>
+  </div>
   <div class="settings-header-controls" id="settingsHeaderControls">
     <button class="settings-header-btn" id="syncHeaderBtn" onclick="signInGoogle()">☁️ Sign in</button>
     <div class="settings-header-toggle">
@@ -2639,6 +2641,9 @@ function navigate(page) {
   if (page==='parked') { renderParked(); }
   // Update the profile pill in the header to reflect current profile context
   updateProfilePill(page);
+  // Show month picker in header only on month-based pages
+  const monthPill = document.getElementById('monthPill');
+  if (monthPill) monthPill.style.display = ['home','txns','charts'].includes(page) ? '' : 'none';
   const shc = document.getElementById('settingsHeaderControls');
   if (page === 'settings') shc.classList.add('visible'); else shc.classList.remove('visible');
   // Close any open dropdown
@@ -2675,7 +2680,13 @@ function selectMonth(m,y) {
 }
 function updateMonthPill() {
   const label = MONTHS[state.currentMonth]+' '+state.currentYear;
-  const mp = document.getElementById('monthPill'); if (mp) mp.textContent = label;
+  const mp = document.getElementById('monthPill');
+  if (mp) {
+    mp.textContent = '📅 ' + label + ' ▾';
+    const active = document.querySelector('.page.active');
+    const pg = active ? active.id.replace('page-','') : 'home';
+    mp.style.display = ['home','txns','charts'].includes(pg) ? '' : 'none';
+  }
   // Show "Viewing past month" warning if currentMonth/Year is not today's
   const today = new Date();
   const isStale = state.currentMonth !== today.getMonth() || state.currentYear !== today.getFullYear();
