@@ -1555,8 +1555,12 @@
       </div>
     </div>
 
-    <!-- Conditional: Credit Card Due Date -->
+    <!-- Conditional: Credit Card -->
     <div class="conditional-field" id="creditFields">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Credit Card</label>
+        <div class="sub-chips-wrap" id="creditCardChips"></div>
+      </div>
       <div class="form-group">
         <label class="form-label">Credit Card Due Date</label>
         <input type="date" class="form-input" id="creditDueDate" />
@@ -2762,12 +2766,41 @@ function renderAccountChips() {
 function closeAccountDropdown() { /* kept for nav compatibility */ }
 function selectAddAccount(id) {
   state.addAccountId = id;
+  // Reset selected bank/card when switching account type
+  state.selectedBank = null;
   renderAccountChips();
   // Conditional fields
-  document.getElementById('creditFields').classList.toggle('visible', id==='credit');
+  const creditVisible = id==='credit';
+  document.getElementById('creditFields').classList.toggle('visible', creditVisible);
+  if (creditVisible) renderCreditCardChips();
   const bankVisible = id==='bank';
   document.getElementById('bankFields').classList.toggle('visible', bankVisible);
   if (bankVisible) renderBankChips();
+}
+
+function renderCreditCardChips() {
+  const wrap = document.getElementById('creditCardChips');
+  if (!wrap) return;
+  wrap.innerHTML = (state.creditCards || []).map(c =>
+    `<button class="sub-chip ${state.selectedBank===c?'selected':''}" onclick="selectCreditCard('${c.replace(/'/g,"\\'")}')">
+      ${c}
+    </button>`
+  ).join('') +
+  `<button class="sub-chip chip-add" onclick="addCustomCreditCard()">+ Add Card</button>`;
+}
+function selectCreditCard(name) {
+  state.selectedBank = state.selectedBank === name ? null : name;
+  renderCreditCardChips();
+}
+function addCustomCreditCard() {
+  const name = prompt('Enter credit card name (e.g., Axis, HDFC, SBI):');
+  if (!name || !name.trim()) return;
+  const trimmed = name.trim();
+  if (!state.creditCards) state.creditCards = [];
+  if (!state.creditCards.includes(trimmed)) state.creditCards.push(trimmed);
+  state.selectedBank = trimmed;
+  save();
+  renderCreditCardChips();
 }
 
 // ══════════════════ DASHBOARD ══════════════════
@@ -3742,8 +3775,8 @@ function renderBankChips() {
   const wrap = document.getElementById('bankChips');
   if (!wrap) return;
   wrap.innerHTML = (state.bankTags || []).map(b =>
-    `<button class="sub-chip bank-chip ${state.selectedBank===b?'selected':''}" onclick="selectBank('${b.replace(/'/g,"\\'")}')" style="${state.selectedBank===b?'':''}">
-      🏦 ${b}
+    `<button class="sub-chip bank-chip ${state.selectedBank===b?'selected':''}" onclick="selectBank('${b.replace(/'/g,"\\'")}')">
+      ${b}
     </button>`
   ).join('') +
   `<button class="sub-chip chip-add" onclick="addCustomBank()">+ Add Bank</button>`;
