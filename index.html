@@ -1387,8 +1387,8 @@
     <div style="font-size:9px;color:var(--muted);font-weight:500;margin-top:2px;letter-spacing:0.2px;">🕐 <!--BUILD_TIME--></div>
   </div>
   <div style="display:flex;align-items:center;gap:6px;">
-    <button class="month-pill" onclick="openMonthPicker()" id="monthPill" style="display:none;">📅 Apr 2026 ▾</button>
-    <button class="month-pill" onclick="openProfileSwitcher()" id="profilePill" title="Switch profile">💸 Personal ▾</button>
+    <button class="month-pill" onclick="openMonthPicker()" id="monthPill" style="display:none;">Apr 2026 ▾</button>
+    <button class="month-pill" onclick="openProfileSwitcher()" id="profilePill" title="Switch profile">Personal ▾</button>
   </div>
   <div class="settings-header-controls" id="settingsHeaderControls">
     <button class="settings-header-btn" id="syncHeaderBtn" onclick="signInGoogle()">☁️ Sign in</button>
@@ -2682,7 +2682,7 @@ function updateMonthPill() {
   const label = MONTHS[state.currentMonth]+' '+state.currentYear;
   const mp = document.getElementById('monthPill');
   if (mp) {
-    mp.textContent = '📅 ' + label + ' ▾';
+    mp.textContent = label + ' ▾';
     const active = document.querySelector('.page.active');
     const pg = active ? active.id.replace('page-','') : 'home';
     mp.style.display = ['home','txns','charts'].includes(pg) ? '' : 'none';
@@ -4875,7 +4875,7 @@ function updateProfilePill(page) {
   else if (page === 'parked') pid = 'parked';
   const prof = PROFILES.find(p => p.id === pid);
   const displayName = pid === 'parked' ? (state.profile3Name || 'Other') : prof.name.split(' ')[0];
-  pill.textContent = `${prof.emoji} ${displayName} ▾`;
+  pill.textContent = `${displayName} ▾`;
 }
 
 function openProfileSwitcher() {
