@@ -2127,6 +2127,22 @@
       <div class="acc-inline-row" id="recAccountChips"></div>
     </div>
 
+    <!-- Conditional: Bank -->
+    <div class="conditional-field" id="recBankFields">
+      <div class="form-group">
+        <label class="form-label">Bank</label>
+        <div class="sub-chips-wrap" id="recBankChips"></div>
+      </div>
+    </div>
+
+    <!-- Conditional: Credit Card -->
+    <div class="conditional-field" id="recCreditFields">
+      <div class="form-group">
+        <label class="form-label">Credit Card</label>
+        <div class="sub-chips-wrap" id="recCreditCardChips"></div>
+      </div>
+    </div>
+
     <!-- Category (horizontal swipe) -->
     <div class="form-group">
       <label class="form-label">Category</label>
@@ -2596,7 +2612,7 @@ let state = {
   txnFilter: 'all', addType: 'expense',
   selectedCat: null, selectedSubCat: null, selectedSpentFor: null, selectedBank: null,
   activeAccount: 'all',
-  recType: 'expense', recSelectedCat: null, recAccountId: 'wallet',
+  recType: 'expense', recSelectedCat: null, recAccountId: 'wallet', recSelectedBank: null,
   addAccountId: 'wallet',
   customCatType: 'expense',
   bankTags: ['Standard Chartered', 'Axis Bank', 'HDFC'],
@@ -3352,11 +3368,13 @@ function renderRecurringList() {
 function openRecurringModal() {
   state.recType='expense'; state.recSelectedCat=null;
   state.recAccountId = state.accounts[0]?.id || 'wallet';
+  state.recSelectedBank = null;
   ['recName','recAmount','recDay'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('recTypeExpense').className='active expense';
   document.getElementById('recTypeIncome').className='';
   renderRecCatGrid();
   renderRecAccountChips();
+  applyRecAccountConditionals();
   document.getElementById('recurringModal').classList.add('open');
 }
 function renderRecAccountChips() {
@@ -3368,7 +3386,63 @@ function renderRecAccountChips() {
     </button>`
   ).join('');
 }
-function selectRecAccount(id) { state.recAccountId = id; renderRecAccountChips(); }
+function selectRecAccount(id) {
+  state.recAccountId = id;
+  state.recSelectedBank = null;
+  renderRecAccountChips();
+  applyRecAccountConditionals();
+}
+function applyRecAccountConditionals() {
+  const bankVisible = state.recAccountId === 'bank';
+  const creditVisible = state.recAccountId === 'credit';
+  document.getElementById('recBankFields').classList.toggle('visible', bankVisible);
+  document.getElementById('recCreditFields').classList.toggle('visible', creditVisible);
+  if (bankVisible) renderRecBankChips();
+  if (creditVisible) renderRecCreditCardChips();
+}
+function renderRecBankChips() {
+  const wrap = document.getElementById('recBankChips');
+  if (!wrap) return;
+  wrap.innerHTML = (state.bankTags || []).map(b =>
+    `<button class="sub-chip ${state.recSelectedBank===b?'selected':''}" onclick="selectRecBank('${b.replace(/'/g,"\\'")}')">${b}</button>`
+  ).join('') +
+  `<button class="sub-chip chip-add" onclick="addRecCustomBank()">+ Add Bank</button>`;
+}
+function selectRecBank(name) {
+  state.recSelectedBank = state.recSelectedBank === name ? null : name;
+  renderRecBankChips();
+}
+function addRecCustomBank() {
+  const name = prompt('Enter bank name:');
+  if (!name || !name.trim()) return;
+  const t = name.trim();
+  if (!state.bankTags.includes(t)) state.bankTags.push(t);
+  state.recSelectedBank = t;
+  save();
+  renderRecBankChips();
+}
+function renderRecCreditCardChips() {
+  const wrap = document.getElementById('recCreditCardChips');
+  if (!wrap) return;
+  wrap.innerHTML = (state.creditCards || []).map(c =>
+    `<button class="sub-chip ${state.recSelectedBank===c?'selected':''}" onclick="selectRecCreditCard('${c.replace(/'/g,"\\'")}')">${c}</button>`
+  ).join('') +
+  `<button class="sub-chip chip-add" onclick="addRecCustomCreditCard()">+ Add Card</button>`;
+}
+function selectRecCreditCard(name) {
+  state.recSelectedBank = state.recSelectedBank === name ? null : name;
+  renderRecCreditCardChips();
+}
+function addRecCustomCreditCard() {
+  const name = prompt('Enter credit card name (e.g., Axis, HDFC, SBI):');
+  if (!name || !name.trim()) return;
+  const t = name.trim();
+  if (!state.creditCards) state.creditCards = [];
+  if (!state.creditCards.includes(t)) state.creditCards.push(t);
+  state.recSelectedBank = t;
+  save();
+  renderRecCreditCardChips();
+}
 function closeRecurringModal(e) {
   if(e.target===document.getElementById('recurringModal')) document.getElementById('recurringModal').classList.remove('open');
 }
@@ -3398,7 +3472,7 @@ function saveRecurring() {
   if(!amount||amount<=0)return alert('Please enter a valid amount.');
   if(!state.recSelectedCat)return alert('Please select a category.');
   if(!day||day<1||day>31)return alert('Please enter a valid day (1–31).');
-  state.recurring.push({id:Date.now().toString(),name,type:state.recType,amount,category:state.recSelectedCat,account,dayOfMonth:day,active:true});
+  state.recurring.push({id:Date.now().toString(),name,type:state.recType,amount,category:state.recSelectedCat,account,bank:state.recSelectedBank||'',dayOfMonth:day,active:true});
   save(); document.getElementById('recurringModal').classList.remove('open'); renderRecurringList();
 }
 function deleteRecurring(id) {
@@ -3414,7 +3488,7 @@ function applyAllRecurring() {
       const maxDay=new Date(state.currentYear,state.currentMonth+1,0).getDate();
       const day=Math.min(r.dayOfMonth,maxDay);
       const date=`${state.currentYear}-${String(state.currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,note:r.name,date,account:r.account,recurringId:r.id});
+      state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
       added++;
     }
   });
@@ -3944,7 +4018,7 @@ function markBillPaid(recurringId) {
   const already = state.transactions.some(t=>t.recurringId===r.id&&new Date(t.date).getMonth()===today.getMonth()&&new Date(t.date).getFullYear()===today.getFullYear());
   if (already) { alert('Already recorded this month.'); return; }
   const date = today.toISOString().split('T')[0];
-  state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,note:r.name,date,account:r.account,recurringId:r.id});
+  state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
   save();
   renderDashboard();
 }
