@@ -503,12 +503,13 @@
     .cat-row::-webkit-scrollbar { display: none; }
     .cat-row .cat-btn {
       flex: 0 0 auto;
-      min-width: 72px;
-      padding: 10px 10px 8px;
+      min-width: auto;
+      padding: 10px 16px;
+      border-radius: 99px;
       scroll-snap-align: start;
     }
-    .cat-row .cat-btn .cat-emoji { font-size: 22px; }
-    .cat-row .cat-btn .cat-name { font-size: 11px; margin-top: 2px; }
+    .cat-row .cat-btn .cat-emoji { display: none; }
+    .cat-row .cat-btn .cat-name { font-size: 13px; font-weight: 600; }
 
     .cat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
     .cat-btn {
@@ -2100,33 +2101,44 @@
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title">Add Recurring Transaction</div>
-    <div class="type-toggle" style="margin:0 0 16px;">
-      <button class="active expense" id="recTypeExpense" onclick="setRecType('expense')">↓ Expense</button>
-      <button id="recTypeIncome" onclick="setRecType('income')">↑ Income</button>
+    <!-- Compact toggle (same as Add Expense) -->
+    <div class="add-type-pill" style="margin:0 0 16px;">
+      <button class="active expense" id="recTypeExpense" onclick="setRecType('expense')">Expense</button>
+      <button id="recTypeIncome" onclick="setRecType('income')">Income</button>
     </div>
+
+    <!-- Amount -->
     <div class="form-group">
-      <label class="form-label">Name</label>
-      <input type="text" class="form-input" id="recName" placeholder="e.g. Rent, Netflix, Salary" />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Amount (₹)</label>
       <div class="amount-input-wrap">
         <span class="amount-currency">₹</span>
         <input type="number" class="form-input" id="recAmount" placeholder="0" inputmode="decimal" />
       </div>
     </div>
+
+    <!-- Name -->
     <div class="form-group">
-      <label class="form-label">Category</label>
-      <div class="cat-grid" id="recCatGrid"></div>
+      <label class="form-label">Name</label>
+      <input type="text" class="form-input" id="recName" placeholder="e.g. Rent, Netflix, Salary" />
     </div>
+
+    <!-- Account (inline, no icons) -->
     <div class="form-group">
       <label class="form-label">Account</label>
-      <select style="width:100%;padding:13px 16px;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:14px;font-size:15px;color:var(--text);outline:none;font-family:inherit;appearance:none;" id="recAccount"></select>
+      <div class="acc-inline-row" id="recAccountChips"></div>
     </div>
+
+    <!-- Category (horizontal swipe) -->
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <div class="cat-row" id="recCatGrid"></div>
+    </div>
+
+    <!-- Day of month -->
     <div class="form-group">
       <label class="form-label">Day of Month (1–31)</label>
       <input type="number" class="form-input" id="recDay" placeholder="e.g. 1 for 1st of every month" min="1" max="31" inputmode="numeric" />
     </div>
+
     <button class="btn-primary" onclick="saveRecurring()">Save Recurring</button>
   </div>
 </div>
@@ -2584,7 +2596,7 @@ let state = {
   txnFilter: 'all', addType: 'expense',
   selectedCat: null, selectedSubCat: null, selectedSpentFor: null, selectedBank: null,
   activeAccount: 'all',
-  recType: 'expense', recSelectedCat: null,
+  recType: 'expense', recSelectedCat: null, recAccountId: 'wallet',
   addAccountId: 'wallet',
   customCatType: 'expense',
   bankTags: ['Standard Chartered', 'Axis Bank', 'HDFC'],
@@ -2933,7 +2945,7 @@ function renderCatGrid() {
   const cats    = [...builtIn, ...custom];
   document.getElementById('catGrid').innerHTML = cats.map(c=>
     `<button class="cat-btn ${state.selectedCat===c.id?'selected':''}" onclick="selectCat('${c.id}')">
-      <span class="cat-emoji">${c.emoji}</span><span class="cat-name">${c.name}</span>
+      <span class="cat-name">${c.name}</span>
     </button>`
   ).join('');
 }
@@ -3339,13 +3351,24 @@ function renderRecurringList() {
 }
 function openRecurringModal() {
   state.recType='expense'; state.recSelectedCat=null;
+  state.recAccountId = state.accounts[0]?.id || 'wallet';
   ['recName','recAmount','recDay'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('recTypeExpense').className='active expense';
   document.getElementById('recTypeIncome').className='';
   renderRecCatGrid();
-  document.getElementById('recAccount').innerHTML=state.accounts.map(a=>`<option value="${a.id}">${a.emoji} ${a.name}</option>`).join('');
+  renderRecAccountChips();
   document.getElementById('recurringModal').classList.add('open');
 }
+function renderRecAccountChips() {
+  const wrap = document.getElementById('recAccountChips');
+  if (!wrap) return;
+  wrap.innerHTML = state.accounts.map(a =>
+    `<button class="acc-chip ${state.recAccountId===a.id?'selected':''}" onclick="selectRecAccount('${a.id}')">
+      <span class="acc-chip-emoji">${a.emoji}</span>${a.name}
+    </button>`
+  ).join('');
+}
+function selectRecAccount(id) { state.recAccountId = id; renderRecAccountChips(); }
 function closeRecurringModal(e) {
   if(e.target===document.getElementById('recurringModal')) document.getElementById('recurringModal').classList.remove('open');
 }
@@ -3361,7 +3384,7 @@ function renderRecCatGrid() {
   const cats    = [...builtIn, ...custom];
   document.getElementById('recCatGrid').innerHTML=cats.map(c=>
     `<button class="cat-btn ${state.recSelectedCat===c.id?'selected':''}" onclick="selectRecCat('${c.id}')">
-      <span class="cat-emoji">${c.emoji}</span><span class="cat-name">${c.name}</span>
+      <span class="cat-name">${c.name}</span>
     </button>`
   ).join('');
 }
@@ -3370,7 +3393,7 @@ function saveRecurring() {
   const name=document.getElementById('recName').value.trim();
   const amount=parseFloat(document.getElementById('recAmount').value);
   const day=parseInt(document.getElementById('recDay').value);
-  const account=document.getElementById('recAccount').value;
+  const account=state.recAccountId || (state.accounts[0]?.id || 'wallet');
   if(!name)return alert('Please enter a name.');
   if(!amount||amount<=0)return alert('Please enter a valid amount.');
   if(!state.recSelectedCat)return alert('Please select a category.');
