@@ -1762,8 +1762,24 @@
   </div>
 
   <div class="settings-section">
-    <div class="settings-section-title">Data</div>
+    <div class="settings-section-title">Data & Backup</div>
     <div class="settings-card">
+      <div class="settings-row" onclick="exportBackup()" style="cursor:pointer;">
+        <span class="settings-icon">💾</span>
+        <div><div class="settings-label">Download Full Backup</div><div class="settings-sub">Save ALL data (every profile) as a file</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
+      <div class="settings-row" onclick="document.getElementById('importBackupInput').click()" style="cursor:pointer;">
+        <span class="settings-icon">♻️</span>
+        <div><div class="settings-label">Restore from Backup</div><div class="settings-sub">Load data from a backup file</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
+      <input type="file" id="importBackupInput" accept="application/json,.json" style="display:none;" onchange="importBackupFile(this)" />
+      <div class="settings-row" onclick="showAutoBackups()" style="cursor:pointer;">
+        <span class="settings-icon">🕘</span>
+        <div><div class="settings-label">Auto-Backups</div><div class="settings-sub">Restore from automatic local snapshots</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
       <div class="settings-row" onclick="exportCSV()" style="cursor:pointer;">
         <span class="settings-icon">📥</span>
         <div><div class="settings-label">Export to CSV</div><div class="settings-sub">Download all transactions</div></div>
@@ -2480,45 +2496,48 @@ function startCloudSync(uid) {
     }
     isSyncingFromCloud = true;
     const d = doc.data();
-    state.transactions = d.transactions || [];
-    state.allocations  = d.allocations  || {};
-    state.recurring    = d.recurring    || [];
-    state.accounts     = d.accounts     || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
-    state.customCats     = d.customCats     || { expense: [], income: [] };
-    state.goals          = d.goals          || [];
-    state.subCategories  = d.subCategories  || { food:[], transport:[], health:[], bills:[] };
-    state.familyMembers  = d.familyMembers  || [];
-    state.purchases      = d.purchases      || [];
-    state.reminders      = d.reminders      || [];
-    state.bankTags       = (Array.isArray(d.bankTags) && d.bankTags.length) ? d.bankTags : state.bankTags;
-    // SAFEGUARD: don't let an empty/missing cloud value wipe local entries.
-    // Only overwrite from cloud if cloud actually has data (or local is also empty).
-    if (Array.isArray(d.parkedMoney) && (d.parkedMoney.length || !(state.parkedMoney||[]).length)) {
-      state.parkedMoney = d.parkedMoney;
-    }
-    state.profile3Name   = d.profile3Name   || state.profile3Name || 'Other Person';
-    state.creditCards    = d.creditCards    || state.creditCards || ['HDFC', 'Axis', 'ICICI'];
-    if (Array.isArray(d.investments) && (d.investments.length || !(investments||[]).length)) {
-      investments = d.investments;
-      localStorage.setItem('investmentState', JSON.stringify(investments));
-    }
-    // If local had data the cloud was missing, push it back up so cloud catches up
-    if ((!Array.isArray(d.parkedMoney) || (!d.parkedMoney.length && (state.parkedMoney||[]).length)) ||
-        (!Array.isArray(d.investments) || (!d.investments.length && (investments||[]).length))) {
-      setTimeout(saveToCloud, 800);
-    }
-    // Also persist locally (COMPLETE — includes all profile data)
-    localStorage.setItem('financeState', JSON.stringify({
-      transactions: state.transactions, allocations: state.allocations,
-      recurring: state.recurring, accounts: state.accounts,
-      customCats: state.customCats, goals: state.goals,
-      subCategories: state.subCategories, familyMembers: state.familyMembers,
-      bankTags: state.bankTags, purchases: state.purchases,
-      reminders: state.reminders, parkedMoney: state.parkedMoney,
-      profile3Name: state.profile3Name, creditCards: state.creditCards,
-      darkMode: state.darkMode,
-      currentMonth: state.currentMonth, currentYear: state.currentYear,
-    }));
+    // ── LAYER 2: Universal empty-overwrite guard ──
+    // For every collection, only accept the cloud value if the cloud actually has data,
+    // OR our local copy is also empty. This prevents an empty cloud from wiping local data.
+    let localHadMore = false;
+    const mergeArr = (cloudVal, localVal) => {
+      const c = Array.isArray(cloudVal) ? cloudVal : null;
+      const l = Array.isArray(localVal) ? localVal : [];
+      if (c && (c.length || l.length === 0)) return c;       // cloud has data, or both empty → take cloud
+      if (l.length) { localHadMore = true; return l; }        // cloud empty but local has data → keep local
+      return l;
+    };
+    const mergeObj = (cloudVal, localVal, fallback) => {
+      if (cloudVal && typeof cloudVal === 'object' && Object.keys(cloudVal).length) return cloudVal;
+      if (localVal && Object.keys(localVal).length) { localHadMore = true; return localVal; }
+      return cloudVal || localVal || fallback;
+    };
+
+    state.transactions  = mergeArr(d.transactions, state.transactions);
+    state.recurring     = mergeArr(d.recurring,    state.recurring);
+    state.accounts      = mergeArr(d.accounts,     state.accounts);
+    if (!state.accounts || !state.accounts.length) state.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+    state.goals         = mergeArr(d.goals,         state.goals);
+    state.familyMembers = mergeArr(d.familyMembers, state.familyMembers);
+    state.purchases     = mergeArr(d.purchases,     state.purchases);
+    state.reminders     = mergeArr(d.reminders,     state.reminders);
+    state.parkedMoney   = mergeArr(d.parkedMoney,   state.parkedMoney);
+    state.bankTags      = mergeArr(d.bankTags,      state.bankTags);
+    state.creditCards   = mergeArr(d.creditCards,   state.creditCards);
+    investments         = mergeArr(d.investments,   investments);
+    localStorage.setItem('investmentState', JSON.stringify(investments));
+
+    state.allocations   = mergeObj(d.allocations,  state.allocations, {});
+    state.customCats    = mergeObj(d.customCats,   state.customCats, { expense: [], income: [] });
+    state.subCategories = mergeObj(d.subCategories,state.subCategories, { food:[], transport:[], health:[], bills:[] });
+    state.profile3Name  = d.profile3Name || state.profile3Name || 'Other Person';
+
+    // If local had data the cloud was missing, push our merged copy back up so cloud catches up
+    if (localHadMore) setTimeout(saveToCloud, 800);
+
+    // Persist locally (COMPLETE snapshot) + keep a rolling backup
+    localStorage.setItem('financeState', JSON.stringify(buildSnapshot()));
+    saveRollingBackup();
     // Re-render active page
     const active = document.querySelector('.page.active');
     if (active) {
@@ -2662,8 +2681,9 @@ function load() {
     if (hdr) hdr.checked = true;
   }
 }
-function save() {
-  localStorage.setItem('financeState', JSON.stringify({
+// Single source of truth for the saved-state shape
+function buildSnapshot() {
+  return {
     transactions: state.transactions, allocations: state.allocations,
     recurring: state.recurring, accounts: state.accounts,
     customCats: state.customCats, goals: state.goals,
@@ -2673,10 +2693,150 @@ function save() {
     reminders: state.reminders,
     parkedMoney: state.parkedMoney,
     profile3Name: state.profile3Name,
+    investments: (typeof investments !== 'undefined' ? investments : []),
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
-  }));
+  };
+}
+function save() {
+  localStorage.setItem('financeState', JSON.stringify(buildSnapshot()));
+  saveRollingBackup();
   saveToCloud();
+}
+
+// ── LAYER 1: Rolling timestamped local backups (keep last 10 meaningful snapshots) ──
+let _backupTimer = null;
+function saveRollingBackup() {
+  clearTimeout(_backupTimer);
+  _backupTimer = setTimeout(() => {
+    try {
+      const snap = buildSnapshot();
+      // Skip if completely empty (don't pollute backups with nothing)
+      const dataCount = (snap.transactions||[]).length + (snap.parkedMoney||[]).length +
+                        (snap.investments||[]).length + (snap.purchases||[]).length +
+                        (snap.goals||[]).length + (snap.recurring||[]).length;
+      if (dataCount === 0) return;
+      let backups = [];
+      try { backups = JSON.parse(localStorage.getItem('financeBackups') || '[]'); } catch(_) {}
+      backups.unshift({ ts: Date.now(), data: snap });
+      // Keep last 10
+      backups = backups.slice(0, 10);
+      localStorage.setItem('financeBackups', JSON.stringify(backups));
+    } catch(e) { console.warn('Backup failed', e); }
+  }, 1000);
+}
+function getBackups() {
+  try { return JSON.parse(localStorage.getItem('financeBackups') || '[]'); } catch(_) { return []; }
+}
+function snapshotDataCount(s) {
+  if (!s) return 0;
+  return (s.transactions||[]).length + (s.parkedMoney||[]).length + (s.investments||[]).length +
+         (s.purchases||[]).length + (s.goals||[]).length + (s.recurring||[]).length +
+         (s.familyMembers||[]).length;
+}
+function applySnapshot(s) {
+  if (!s) return;
+  state.transactions  = s.transactions  || [];
+  state.allocations   = s.allocations   || {};
+  state.recurring     = s.recurring     || [];
+  state.accounts      = s.accounts      || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+  state.customCats    = s.customCats    || { expense: [], income: [] };
+  state.goals         = s.goals         || [];
+  state.subCategories = s.subCategories || { food:[], transport:[], health:[], bills:[] };
+  state.familyMembers = s.familyMembers || [];
+  state.bankTags      = s.bankTags      || ['Standard Chartered', 'Axis Bank', 'HDFC'];
+  state.creditCards   = s.creditCards   || ['HDFC', 'Axis', 'ICICI'];
+  state.purchases     = s.purchases     || [];
+  state.reminders     = s.reminders     || [];
+  state.parkedMoney   = s.parkedMoney   || [];
+  state.profile3Name  = s.profile3Name  || 'Other Person';
+  if (Array.isArray(s.investments)) {
+    investments = s.investments;
+    localStorage.setItem('investmentState', JSON.stringify(investments));
+  }
+  if (s.currentMonth != null) state.currentMonth = s.currentMonth;
+  if (s.currentYear  != null) state.currentYear  = s.currentYear;
+}
+// ── LAYER 3: Auto-restore on startup if live data is empty but a backup has data ──
+function integrityCheckRestore() {
+  const liveCount = snapshotDataCount(buildSnapshot());
+  if (liveCount > 0) return; // data present, nothing to do
+  const backups = getBackups();
+  if (!backups.length) return;
+  // Find the most recent backup that actually has data
+  const best = backups.find(b => snapshotDataCount(b.data) > 0);
+  if (best) {
+    applySnapshot(best.data);
+    localStorage.setItem('financeState', JSON.stringify(buildSnapshot()));
+    console.log('Auto-restored from backup dated', new Date(best.ts).toLocaleString());
+  }
+}
+
+// ── LAYER 4: Manual full backup — export / import as JSON file ──
+function exportBackup() {
+  const payload = { app: 'finance-tracker', version: 1, exportedAt: new Date().toISOString(), data: buildSnapshot() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `finance-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function showAutoBackups() {
+  const backups = getBackups();
+  if (!backups.length) { alert('No automatic backups yet. They are created as you use the app.'); return; }
+  const lines = backups.map((b, i) =>
+    `${i+1}. ${new Date(b.ts).toLocaleString()} — ${snapshotDataCount(b.data)} entries`
+  ).join('\n');
+  const choice = prompt(`Automatic backups (most recent first):\n\n${lines}\n\nType a number to restore that backup, or Cancel:`);
+  if (choice == null) return;
+  const idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= backups.length) { alert('Invalid selection.'); return; }
+  const snap = backups[idx].data;
+  if (!confirm(`Restore backup from ${new Date(backups[idx].ts).toLocaleString()} with ${snapshotDataCount(snap)} entries?\nThis replaces current data on this device.`)) return;
+  applySnapshot(snap);
+  save();
+  const active = document.querySelector('.page.active');
+  if (active) {
+    if (active.id==='page-home') renderDashboard();
+    if (active.id==='page-settings') renderSettings();
+    if (active.id==='page-investments') renderInvestments();
+    if (active.id==='page-parked') renderParked();
+    if (active.id==='page-purchases') renderPurchases();
+    if (active.id==='page-txns') renderTxns();
+  }
+  alert('Restored ✅');
+}
+function importBackupFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const snap = parsed.data || parsed; // accept raw snapshot or wrapped
+      const count = snapshotDataCount(snap);
+      if (!confirm(`This backup contains ${count} data entries (transactions, investments, parked money, etc.).\n\nRestore it? This replaces your current data on this device.`)) { input.value=''; return; }
+      applySnapshot(snap);
+      save();
+      // Re-render whatever is active
+      const active = document.querySelector('.page.active');
+      if (active) {
+        if (active.id==='page-home') renderDashboard();
+        if (active.id==='page-txns') renderTxns();
+        if (active.id==='page-settings') renderSettings();
+        if (active.id==='page-investments') renderInvestments();
+        if (active.id==='page-parked') renderParked();
+        if (active.id==='page-purchases') renderPurchases();
+      }
+      alert(`Restored ${count} entries ✅`);
+    } catch(err) {
+      alert('Could not read backup file: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
 }
 
 // ══════════════════ HELPERS ══════════════════
@@ -5220,6 +5380,7 @@ function injectModalCloseButtons() {
 // ══════════════════ INIT ══════════════════
 load();
 loadInvestments();
+integrityCheckRestore();
 renderDashboard();
 updateMonthPill();
 updateProfilePill('home');
