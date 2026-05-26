@@ -5112,6 +5112,7 @@ let _parkedEditingId = null;
 let _parkedSelectedType = 'fd';
 
 let _parkedPurity = '22';
+let _parkedGoldFetchTried = false;
 function renderParkedTypeGrid() {
   document.getElementById('parkedTypeGrid').innerHTML = PARKED_TYPES.map(t =>
     `<button class="cat-btn ${_parkedSelectedType===t.id?'selected':''}" onclick="selectParkedType('${t.id}')">
@@ -5189,6 +5190,13 @@ function deleteCurrentParked() {
   closeParkedModal();
 }
 
+// Current live value of a parked gold entry (grams × live Chennai rate)
+function parkedGoldCurrent(p) {
+  if (p.type !== 'gold' || !p.grams || !_goldRateCache) return null;
+  const rate = p.purity === '24' ? _goldRateCache.r24 : _goldRateCache.r22;
+  return p.grams * rate;
+}
+
 function renderParked() {
   // Owner label
   const ownerLabel = document.getElementById('parkedOwnerLabel');
@@ -5197,6 +5205,29 @@ function renderParked() {
   document.getElementById('parkedTotal').textContent = fmt(total);
   document.getElementById('parkedCount').textContent =
     `${(state.parkedMoney || []).length} ${(state.parkedMoney||[]).length === 1 ? 'entry' : 'entries'}`;
+
+  // Gold portfolio summary (invested vs current vs P/L)
+  const goldItems = (state.parkedMoney || []).filter(p => p.type==='gold' && p.grams);
+  let goldSummary = '';
+  if (goldItems.length && _goldRateCache) {
+    const gInvested = goldItems.reduce((s,p)=>s+(p.amount||0),0);
+    const gCurrent  = goldItems.reduce((s,p)=>s+(parkedGoldCurrent(p)||p.amount||0),0);
+    const gPL = gCurrent - gInvested;
+    const gPct = gInvested>0 ? (gPL/gInvested)*100 : 0;
+    const cls = gPL>=0?'profit':'loss';
+    goldSummary = `
+      <div style="margin:14px 16px 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(245,158,11,0.14),rgba(251,191,36,0.10));border:1px solid rgba(245,158,11,0.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:700;color:#92400e;">🥇 Gold (live Chennai)</span>
+          <button onclick="refreshGoldRate(true)" style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:3px 10px;font-size:10px;font-weight:700;color:#92400e;cursor:pointer;">↻ ${_goldRateCache.r22.toLocaleString('en-IN')}/g 22K</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+          <div><div style="font-size:10px;color:var(--muted);font-weight:700;">INVESTED</div><div style="font-size:14px;font-weight:800;">${fmt(gInvested)}</div></div>
+          <div><div style="font-size:10px;color:var(--muted);font-weight:700;">CURRENT</div><div style="font-size:14px;font-weight:800;">${fmt(gCurrent)}</div></div>
+          <div><div style="font-size:10px;color:var(--muted);font-weight:700;">P/L</div><div style="font-size:14px;font-weight:800;color:${gPL>=0?'#10b981':'var(--expense)'};">${gPL>=0?'+':'-'}${fmt(Math.abs(gPL))}<br><span style="font-size:10px;">${gPL>=0?'+':''}${gPct.toFixed(1)}%</span></div></div>
+        </div>
+      </div>`;
+  }
 
   // Group by type
   const sections = PARKED_TYPES.map(t => {
@@ -5211,14 +5242,28 @@ function renderParked() {
           <span class="parked-type-total">${fmt(subtotal)}</span>
         </div>
         ${items.map(p => {
+          const cur = parkedGoldCurrent(p);
+          const isGoldLive = p.type==='gold' && p.grams && cur != null;
           const goldPart = (p.type==='gold' && p.grams) ? `🥇 ${p.grams}g ${p.purity||'22'}K · ` : '';
+          let rightSide;
+          if (isGoldLive) {
+            const pl = cur - (p.amount||0);
+            const plCls = pl>=0?'#10b981':'var(--expense)';
+            rightSide = `<div style="text-align:right;">
+              <div class="parked-item-amt">${fmt(cur)}</div>
+              <div style="font-size:11px;font-weight:700;color:${plCls};">${pl>=0?'+':'-'}${fmt(Math.abs(pl))}</div>
+              <div style="font-size:10px;color:var(--muted);">paid ${fmt(p.amount||0)}</div>
+            </div>`;
+          } else {
+            rightSide = `<div class="parked-item-amt">${fmt(p.amount||0)}</div>`;
+          }
           return `
           <div class="parked-item" onclick="openParkedModal('${p.id}')" style="cursor:pointer;">
             <div class="parked-item-info">
               <div class="parked-item-name">${escapeHtml(p.name)}</div>
               <div class="parked-item-meta">${goldPart}${p.date || ''}${p.notes ? ' · ' + escapeHtml(p.notes) : ''}</div>
             </div>
-            <div class="parked-item-amt">${fmt(p.amount||0)}</div>
+            ${rightSide}
           </div>`;
         }).join('')}
       </div>
@@ -5226,8 +5271,14 @@ function renderParked() {
   }).filter(Boolean).join('');
 
   const sectionsEl = document.getElementById('parkedSections');
+  // Trigger live gold rate fetch once if needed (guard against repeat loops on failure)
+  if (goldItems.length && !_goldRateCache && !_parkedGoldFetchTried) {
+    _parkedGoldFetchTried = true;
+    refreshGoldRate(false).then(() => { if (_goldRateCache) renderParked(); });
+  }
+
   if (sections) {
-    sectionsEl.innerHTML = sections;
+    sectionsEl.innerHTML = goldSummary + sections;
   } else {
     sectionsEl.innerHTML = `<div class="parked-type-section">
       <div class="parked-empty" style="padding:30px 16px;">No entries yet.<br>Tap <b>+</b> to add where you parked the money.</div>
