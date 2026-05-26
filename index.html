@@ -2490,20 +2490,32 @@ function startCloudSync(uid) {
     state.familyMembers  = d.familyMembers  || [];
     state.purchases      = d.purchases      || [];
     state.reminders      = d.reminders      || [];
-    state.parkedMoney    = d.parkedMoney    || [];
+    state.bankTags       = (Array.isArray(d.bankTags) && d.bankTags.length) ? d.bankTags : state.bankTags;
+    // SAFEGUARD: don't let an empty/missing cloud value wipe local entries.
+    // Only overwrite from cloud if cloud actually has data (or local is also empty).
+    if (Array.isArray(d.parkedMoney) && (d.parkedMoney.length || !(state.parkedMoney||[]).length)) {
+      state.parkedMoney = d.parkedMoney;
+    }
     state.profile3Name   = d.profile3Name   || state.profile3Name || 'Other Person';
     state.creditCards    = d.creditCards    || state.creditCards || ['HDFC', 'Axis', 'ICICI'];
-    if (Array.isArray(d.investments)) {
+    if (Array.isArray(d.investments) && (d.investments.length || !(investments||[]).length)) {
       investments = d.investments;
       localStorage.setItem('investmentState', JSON.stringify(investments));
     }
-    // Also persist locally
+    // If local had data the cloud was missing, push it back up so cloud catches up
+    if ((!Array.isArray(d.parkedMoney) || (!d.parkedMoney.length && (state.parkedMoney||[]).length)) ||
+        (!Array.isArray(d.investments) || (!d.investments.length && (investments||[]).length))) {
+      setTimeout(saveToCloud, 800);
+    }
+    // Also persist locally (COMPLETE — includes all profile data)
     localStorage.setItem('financeState', JSON.stringify({
       transactions: state.transactions, allocations: state.allocations,
       recurring: state.recurring, accounts: state.accounts,
       customCats: state.customCats, goals: state.goals,
       subCategories: state.subCategories, familyMembers: state.familyMembers,
-      purchases: state.purchases,
+      bankTags: state.bankTags, purchases: state.purchases,
+      reminders: state.reminders, parkedMoney: state.parkedMoney,
+      profile3Name: state.profile3Name, creditCards: state.creditCards,
       darkMode: state.darkMode,
       currentMonth: state.currentMonth, currentYear: state.currentYear,
     }));
