@@ -5027,7 +5027,60 @@ function renderParked() {
   }).filter(Boolean).join('');
 
   const sectionsEl = document.getElementById('parkedSections');
-  sectionsEl.innerHTML = sections || '<div class="parked-type-section"><div class="parked-empty" style="padding:30px 16px;">No entries yet.<br>Tap <b>+</b> to add where you parked the money.</div></div>';
+  if (sections) {
+    sectionsEl.innerHTML = sections;
+  } else {
+    sectionsEl.innerHTML = `<div class="parked-type-section">
+      <div class="parked-empty" style="padding:30px 16px;">No entries yet.<br>Tap <b>+</b> to add where you parked the money.</div>
+      <div style="text-align:center;margin-top:8px;">
+        <button onclick="recoverParked()" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);color:var(--primary);font-size:12px;font-weight:700;padding:8px 16px;border-radius:99px;cursor:pointer;">🔍 Recover lost entries</button>
+      </div>
+    </div>`;
+  }
+}
+
+// Diagnostic + recovery: checks local backup and cloud for parked entries
+async function recoverParked() {
+  let report = [];
+  // 1. Current in-memory
+  report.push('In app now: ' + (state.parkedMoney||[]).length + ' entries');
+  // 2. Local backup
+  let localData = [];
+  try {
+    const ls = JSON.parse(localStorage.getItem('financeState') || '{}');
+    localData = ls.parkedMoney || [];
+  } catch(_) {}
+  report.push('Local backup: ' + localData.length + ' entries');
+  // 3. Cloud
+  let cloudData = null;
+  if (typeof currentUser !== 'undefined' && currentUser && typeof db !== 'undefined') {
+    try {
+      const doc = await db.collection('users').doc(currentUser.uid).get();
+      cloudData = doc.exists ? (doc.data().parkedMoney || []) : null;
+      report.push('Cloud: ' + (cloudData === null ? 'no document' : cloudData.length + ' entries'));
+    } catch(e) {
+      report.push('Cloud: error reading (' + e.message + ')');
+    }
+  } else {
+    report.push('Cloud: not signed in');
+  }
+
+  // Pick the source with the most entries
+  let best = state.parkedMoney || [];
+  let bestSrc = 'app';
+  if (localData.length > best.length) { best = localData; bestSrc = 'local backup'; }
+  if (cloudData && cloudData.length > best.length) { best = cloudData; bestSrc = 'cloud'; }
+
+  if (best.length > (state.parkedMoney||[]).length) {
+    if (confirm(report.join('\n') + `\n\nFound ${best.length} entries in ${bestSrc}. Restore them?`)) {
+      state.parkedMoney = best;
+      save();
+      renderParked();
+      alert('Restored ' + best.length + ' entries ✅');
+    }
+  } else {
+    alert(report.join('\n') + '\n\nNo additional entries found in any backup. Unfortunately the data appears to be lost.');
+  }
 }
 
 function renameProfile3() {
