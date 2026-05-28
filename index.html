@@ -2039,14 +2039,14 @@
       </div>
     </div>
 
-    <!-- Loan-specific: interest % + close date (edit only) -->
+    <!-- Loan/FD interest fields -->
     <div id="parkedLoanFields" style="display:none;">
       <div class="form-group">
         <label class="form-label">Interest Rate (% per year)</label>
         <input type="number" class="form-input" id="parkedInterestPct" placeholder="e.g., 12" inputmode="decimal" step="0.01" />
       </div>
       <div class="form-group" id="parkedCloseDateGroup" style="display:none;">
-        <label class="form-label">Loan Close Date <span style="font-weight:400;text-transform:none;letter-spacing:0;">(leave empty if active)</span></label>
+        <label class="form-label" id="parkedCloseDateLabel">Close Date <span style="font-weight:400;text-transform:none;letter-spacing:0;">(leave empty if active)</span></label>
         <input type="date" class="form-input" id="parkedCloseDate" />
       </div>
     </div>
@@ -5138,10 +5138,17 @@ function renderParkedTypeGrid() {
   const loanFields = document.getElementById('parkedLoanFields');
   const isGold = _parkedSelectedType === 'gold';
   const isLoan = _parkedSelectedType === 'loan';
+  const isFd   = _parkedSelectedType === 'fd';
+  const hasInterest = isLoan || isFd;
   goldFields.style.display = isGold ? '' : 'none';
-  loanFields.style.display = isLoan ? '' : 'none';
-  // Close date only relevant when editing an existing loan
-  document.getElementById('parkedCloseDateGroup').style.display = (isLoan && _parkedEditingId) ? '' : 'none';
+  loanFields.style.display = hasInterest ? '' : 'none';
+  // Close/maturity date only relevant when editing an existing entry
+  document.getElementById('parkedCloseDateGroup').style.display = (hasInterest && _parkedEditingId) ? '' : 'none';
+  // Label adapts: FDs have a Maturity Date, loans have a Close Date
+  const closeLbl = document.getElementById('parkedCloseDateLabel');
+  if (closeLbl) closeLbl.innerHTML = isFd
+    ? 'FD Maturity Date <span style="font-weight:400;text-transform:none;letter-spacing:0;">(leave empty if active)</span>'
+    : 'Loan Close Date <span style="font-weight:400;text-transform:none;letter-spacing:0;">(leave empty if active)</span>';
   if (isLoan)                                { lbl.textContent = 'Lent to (name)'; inp.placeholder = 'e.g., Ravi, Cousin Suresh'; }
   else if (_parkedSelectedType === 'partnership') { lbl.textContent = 'Business / Shop name'; inp.placeholder = 'e.g., Saravana Stores'; }
   else if (_parkedSelectedType === 'fd')     { lbl.textContent = 'Bank / FD name'; inp.placeholder = 'e.g., SBI FD 2026'; }
@@ -5189,9 +5196,9 @@ function saveParked() {
   const grams  = isGold ? (parseFloat(document.getElementById('parkedGrams').value) || 0) : 0;
   const purity = isGold ? _parkedPurity : '';
 
-  const isLoan = _parkedSelectedType === 'loan';
-  const interestPct = isLoan ? (parseFloat(document.getElementById('parkedInterestPct').value) || 0) : 0;
-  const closeDate   = isLoan ? document.getElementById('parkedCloseDate').value : '';
+  const hasInterest = _parkedSelectedType === 'loan' || _parkedSelectedType === 'fd';
+  const interestPct = hasInterest ? (parseFloat(document.getElementById('parkedInterestPct').value) || 0) : 0;
+  const closeDate   = hasInterest ? document.getElementById('parkedCloseDate').value : '';
 
   const fields = { type: _parkedSelectedType, name, amount, date, notes, grams, purity, interestPct, closeDate };
   if (_parkedEditingId) {
@@ -5219,9 +5226,9 @@ function parkedGoldCurrent(p) {
   const rate = p.purity === '24' ? _goldRateCache.r24 : _goldRateCache.r22;
   return p.grams * rate;
 }
-// Simple-interest profit on a loan-given entry. Returns { interest, days, currentValue, closed }
-function parkedLoanProfit(p) {
-  if (p.type !== 'loan' || !p.interestPct || !p.date) return null;
+// Simple-interest profit for a loan-given or FD entry. Returns { interest, days, currentValue, closed }
+function parkedInterestProfit(p) {
+  if ((p.type !== 'loan' && p.type !== 'fd') || !p.interestPct || !p.date) return null;
   const start = new Date(p.date);
   const end   = p.closeDate ? new Date(p.closeDate) : new Date();
   const days  = Math.max(0, Math.floor((end - start) / (1000*60*60*24)));
@@ -5277,10 +5284,11 @@ function renderParked() {
         ${items.map(p => {
           const cur = parkedGoldCurrent(p);
           const isGoldLive = p.type==='gold' && p.grams && cur != null;
-          const loanP = parkedLoanProfit(p);
+          const loanP = parkedInterestProfit(p);
           const goldPart = (p.type==='gold' && p.grams) ? `🥇 ${p.grams}g ${p.purity||'22'}K · ` : '';
-          const loanPart = (p.type==='loan' && p.interestPct) ?
-            `💹 ${p.interestPct}%/yr · ${p.closeDate ? 'Closed ' + p.closeDate : 'Active'} · ` : '';
+          const closedLabel = p.type==='fd' ? 'Matured' : 'Closed';
+          const loanPart = ((p.type==='loan' || p.type==='fd') && p.interestPct) ?
+            `💹 ${p.interestPct}%/yr · ${p.closeDate ? closedLabel + ' ' + p.closeDate : 'Active'} · ` : '';
           let rightSide;
           if (isGoldLive) {
             const pl = cur - (p.amount||0);
