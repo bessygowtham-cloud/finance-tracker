@@ -1018,6 +1018,17 @@
     .recurring-amount { font-size: 14px; font-weight: 700; }
     .recurring-amount.income { color: var(--income); }
     .recurring-amount.expense { color: var(--expense); }
+    .recurring-item-acc {
+      background: var(--glass-light);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border-light);
+      box-shadow: var(--glass-shadow-light);
+      border-radius: 14px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    body.dark .recurring-item-acc { background: var(--glass-dark); border-color: var(--glass-border-dark); box-shadow: var(--glass-shadow-dark); }
+    .recurring-item-acc:last-child { margin-bottom: 0; }
 
     /* ── ACCOUNT INLINE LAYOUT ── */
     .accounts-inline {
@@ -2190,6 +2201,14 @@
     <div class="form-group">
       <label class="form-label">Category</label>
       <div class="cat-row" id="recCatGrid"></div>
+    </div>
+
+    <!-- Sub Category (only for Food / Petrol / Health / Bills) -->
+    <div class="conditional-field" id="recSubCatField">
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Sub Category <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+        <div class="sub-chips-wrap" id="recSubCatChips"></div>
+      </div>
     </div>
 
     <!-- Day of month -->
@@ -3558,27 +3577,61 @@ function renderRecurringList() {
   el.innerHTML=state.recurring.map(r=>{
     const cat=getAllCats().find(c=>c.id===r.category)||{emoji:'💰',name:r.category};
     const sign=r.type==='income'?'+':'-';
-    return `<div class="recurring-item">
-      <div class="txn-icon ${r.type}-icon">${cat.emoji}</div>
-      <div class="recurring-info">
-        <div class="recurring-name">${r.name}</div>
-        <div class="recurring-meta">${cat.name} · Day ${r.dayOfMonth} every month</div>
+    const acc = state.accounts.find(a=>a.id===r.account);
+    const details = [];
+    if (r.subCategory) details.push(`Sub: ${escapeHtml(r.subCategory)}`);
+    if (acc) details.push(`Account: ${acc.name}`);
+    if (r.bank) details.push(`Bank/Card: ${escapeHtml(r.bank)}`);
+    details.push(`Day ${r.dayOfMonth} of every month`);
+    details.push(`Type: ${r.type}`);
+    return `<div class="recurring-item-acc" data-id="${r.id}">
+      <div class="recurring-head" onclick="toggleRecurringExpand('${r.id}')" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;">
+        <div style="flex:1;min-width:0;">
+          <div class="recurring-name" style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.name)}</div>
+          <div class="recurring-meta" style="font-size:11px;color:var(--muted);margin-top:2px;">${cat.name} · Day ${r.dayOfMonth}</div>
+        </div>
+        <div class="recurring-amount ${r.type}" style="font-weight:800;">${sign}${fmt(r.amount)}</div>
+        <span class="rec-chev" style="color:var(--primary);font-size:14px;transition:transform .2s var(--ease);">▾</span>
       </div>
-      <div class="recurring-amount ${r.type}">${sign}${fmt(r.amount)}</div>
-      <button class="delete-btn" onclick="deleteRecurring('${r.id}')">×</button>
+      <div class="recurring-body" style="display:none;padding:4px 14px 14px;border-top:1px solid var(--border);">
+        <div style="font-size:12px;color:var(--text);line-height:1.7;">
+          ${details.map(d => `<div>• ${d}</div>`).join('')}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="markBillPaid('${r.id}');event.stopPropagation();" style="flex:1;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:var(--primary);font-size:12px;font-weight:700;padding:8px;border-radius:10px;cursor:pointer;">Apply Now</button>
+          <button onclick="deleteRecurring('${r.id}');event.stopPropagation();" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--expense);font-size:12px;font-weight:700;padding:8px 14px;border-radius:10px;cursor:pointer;">Delete</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
+}
+function toggleRecurringExpand(id) {
+  const items = document.querySelectorAll('.recurring-item-acc');
+  items.forEach(item => {
+    const body = item.querySelector('.recurring-body');
+    const chev = item.querySelector('.rec-chev');
+    if (item.getAttribute('data-id') === id) {
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : '';
+      if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
+    } else {
+      body.style.display = 'none';
+      if (chev) chev.style.transform = '';
+    }
+  });
 }
 function openRecurringModal() {
   state.recType='expense'; state.recSelectedCat=null;
   state.recAccountId = state.accounts[0]?.id || 'wallet';
   state.recSelectedBank = null;
+  state.recSelectedSubCat = null;
   ['recName','recAmount','recDay'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('recTypeExpense').className='active expense';
   document.getElementById('recTypeIncome').className='';
   renderRecCatGrid();
   renderRecAccountChips();
   applyRecAccountConditionals();
+  renderRecSubCatChips();
   document.getElementById('recurringModal').classList.add('open');
 }
 function renderRecAccountChips() {
@@ -3666,7 +3719,43 @@ function renderRecCatGrid() {
     </button>`
   ).join('');
 }
-function selectRecCat(id){state.recSelectedCat=id;renderRecCatGrid();}
+function selectRecCat(id){
+  state.recSelectedCat = id;
+  state.recSelectedSubCat = null;
+  renderRecCatGrid();
+  renderRecSubCatChips();
+}
+function renderRecSubCatChips() {
+  const wrap = document.getElementById('recSubCatField');
+  if (!wrap) return;
+  const subCatCats = ['food','transport','health','bills'];
+  const cat = state.recSelectedCat;
+  if (!subCatCats.includes(cat)) { wrap.classList.remove('visible'); return; }
+  wrap.classList.add('visible');
+  const subs = (state.subCategories && state.subCategories[cat]) || [];
+  const chipsEl = document.getElementById('recSubCatChips');
+  chipsEl.innerHTML = subs.map(s =>
+    `<button class="sub-chip ${state.recSelectedSubCat===s?'selected':''}" onclick="selectRecSubCat('${s.replace(/'/g,"\\'")}')">${s}</button>`
+  ).join('') +
+  `<button class="sub-chip chip-add" onclick="addRecCustomSubCat()">+ Add</button>`;
+}
+function selectRecSubCat(name) {
+  state.recSelectedSubCat = state.recSelectedSubCat === name ? null : name;
+  renderRecSubCatChips();
+}
+function addRecCustomSubCat() {
+  const cat = state.recSelectedCat;
+  if (!cat) return;
+  const name = prompt(`Add a sub-category for ${cat} (e.g., Internet bill, Electricity):`);
+  if (!name || !name.trim()) return;
+  const t = name.trim();
+  if (!state.subCategories) state.subCategories = { food:[], transport:[], health:[], bills:[] };
+  if (!state.subCategories[cat]) state.subCategories[cat] = [];
+  if (!state.subCategories[cat].includes(t)) state.subCategories[cat].push(t);
+  state.recSelectedSubCat = t;
+  save();
+  renderRecSubCatChips();
+}
 function saveRecurring() {
   const name=document.getElementById('recName').value.trim();
   const amount=parseFloat(document.getElementById('recAmount').value);
@@ -3676,7 +3765,7 @@ function saveRecurring() {
   if(!amount||amount<=0)return alert('Please enter a valid amount.');
   if(!state.recSelectedCat)return alert('Please select a category.');
   if(!day||day<1||day>31)return alert('Please enter a valid day (1–31).');
-  state.recurring.push({id:Date.now().toString(),name,type:state.recType,amount,category:state.recSelectedCat,account,bank:state.recSelectedBank||'',dayOfMonth:day,active:true});
+  state.recurring.push({id:Date.now().toString(),name,type:state.recType,amount,category:state.recSelectedCat,subCategory:state.recSelectedSubCat||'',account,bank:state.recSelectedBank||'',dayOfMonth:day,active:true});
   save(); document.getElementById('recurringModal').classList.remove('open'); renderRecurringList();
 }
 function deleteRecurring(id) {
@@ -3692,7 +3781,7 @@ function applyAllRecurring() {
       const maxDay=new Date(state.currentYear,state.currentMonth+1,0).getDate();
       const day=Math.min(r.dayOfMonth,maxDay);
       const date=`${state.currentYear}-${String(state.currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
+      state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,subCategory:r.subCategory||'',note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
       added++;
     }
   });
@@ -4222,7 +4311,7 @@ function markBillPaid(recurringId) {
   const already = state.transactions.some(t=>t.recurringId===r.id&&new Date(t.date).getMonth()===today.getMonth()&&new Date(t.date).getFullYear()===today.getFullYear());
   if (already) { alert('Already recorded this month.'); return; }
   const date = today.toISOString().split('T')[0];
-  state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
+  state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,subCategory:r.subCategory||'',note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
   save();
   renderDashboard();
 }
