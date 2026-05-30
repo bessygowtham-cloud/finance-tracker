@@ -2928,7 +2928,7 @@ function navigate(page) {
   document.getElementById('monthPill').style.display = ['home','txns','charts'].includes(page)?'':'none';
   if (page==='purchases') renderPurchases();
   if (page==='investments') { renderInvestments(); }
-  if (page==='parked') { renderParked(); }
+  if (page==='parked') { renderParked(); if (!_goldRateCache) refreshGoldRate(false).then(()=>renderParked()); }
   // Update the profile pill in the header to reflect current profile context
   updateProfilePill(page);
   // Show month picker in header only on month-based pages
@@ -5480,9 +5480,9 @@ function renderParked() {
   }).filter(Boolean).join('');
 
   const sectionsEl = document.getElementById('parkedSections');
-  // Trigger live gold rate fetch once if needed (guard against repeat loops on failure)
-  if (goldItems.length && !_goldRateCache && !_parkedGoldFetchTried) {
-    _parkedGoldFetchTried = true;
+  // Trigger live gold rate fetch if we have gold items and no cache.
+  // The .then guard (re-render only if cache loaded) prevents infinite loops on failure.
+  if (goldItems.length && !_goldRateCache) {
     refreshGoldRate(false).then(() => { if (_goldRateCache) renderParked(); });
   }
 
