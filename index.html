@@ -2898,7 +2898,7 @@ function importBackupFile(input) {
 
 // ══════════════════ HELPERS ══════════════════
 function fmt(n) {
-  return '₹' + Math.abs(n).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:2});
+  return '₹' + Math.round(Math.abs(n||0)).toLocaleString('en-IN');
 }
 function monthTxns(account) {
   const acc = account !== undefined ? account : state.activeAccount;
@@ -5444,7 +5444,7 @@ function renderParked() {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
           <div><div style="font-size:10px;color:var(--muted);font-weight:700;">INVESTED</div><div style="font-size:14px;font-weight:800;">${fmt(gInvested)}</div></div>
           <div><div style="font-size:10px;color:var(--muted);font-weight:700;">CURRENT</div><div style="font-size:14px;font-weight:800;">${fmt(gCurrent)}</div></div>
-          <div><div style="font-size:10px;color:var(--muted);font-weight:700;">P/L</div><div style="font-size:14px;font-weight:800;color:${gPL>=0?'#10b981':'var(--expense)'};">${gPL>=0?'+':'-'}${fmt(Math.abs(gPL))}<br><span style="font-size:10px;">${gPL>=0?'+':''}${gPct.toFixed(1)}%</span></div></div>
+          <div><div style="font-size:10px;color:var(--muted);font-weight:700;">P/L</div><div style="font-size:14px;font-weight:800;color:${gPL>=0?'#10b981':'var(--expense)'};">${gPL>=0?'+':'-'}${fmt(Math.abs(gPL))}<br><span style="font-size:10px;">${gPL>=0?'+':''}${Math.round(gPct)}%</span></div></div>
         </div>
       </div>`;
   }
@@ -5464,72 +5464,64 @@ function renderParked() {
           <span class="parked-type-total">${fmt(subtotal)}</span>
         </div>
         ${items.map(p => {
+          const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' }) : '';
           const cur = parkedGoldCurrent(p);
           const isGoldLive = p.type==='gold' && p.grams && cur != null;
           const loanP = parkedInterestProfit(p);
-          let goldPart = '';
+          let meta = '', rightSide;
+
           if (p.type==='gold' && p.grams) {
-            const purchasePerG = (p.amount||0) / p.grams;
-            const currentPerG = _goldRateCache ? (p.purity==='24' ? _goldRateCache.r24 : _goldRateCache.r22) : null;
-            goldPart = `🥇 ${p.grams}g ${p.purity||'22'}K`;
-            if (purchasePerG) goldPart += ` · paid ₹${Math.round(purchasePerG).toLocaleString('en-IN')}/g`;
-            if (currentPerG) goldPart += ` · now ₹${currentPerG.toLocaleString('en-IN')}/g`;
-            goldPart += ' · ';
-          }
-          const closedLabel = p.type==='fd' ? 'Matured' : 'Closed';
-          const loanPart = ((p.type==='loan' || p.type==='fd') && p.interestPct) ?
-            `💹 ${p.interestPct}%/yr · ${p.closeDate ? closedLabel + ' ' + p.closeDate : 'Active'} · ` : '';
-          let rightSide;
-          if (isGoldLive) {
-            const pl = cur - (p.amount||0);
-            const plPct = (p.amount||0) > 0 ? (pl / p.amount) * 100 : 0;
-            const plCls = pl>=0?'#10b981':'var(--expense)';
-            rightSide = `<div style="text-align:right;">
-              <div class="parked-item-amt">${fmt(cur)}</div>
-              <div style="font-size:11px;font-weight:700;color:${plCls};">${pl>=0?'+':'-'}${fmt(Math.abs(pl))} (${pl>=0?'+':''}${plPct.toFixed(1)}%)</div>
-              <div style="font-size:10px;color:var(--muted);">purchased ${fmt(p.amount||0)}</div>
-            </div>`;
+            // Meta: grams + purity + date only (rate is shown in summary panel)
+            meta = `🥇 ${p.grams}g ${p.purity||'22'}K · ${fmtDate(p.date)}`;
+            if (isGoldLive) {
+              const pl = cur - (p.amount||0);
+              const plPct = (p.amount||0) > 0 ? Math.round((pl / p.amount) * 100) : 0;
+              const plCls = pl>=0?'#10b981':'var(--expense)';
+              rightSide = `<div style="text-align:right;">
+                <div class="parked-item-amt">${fmt(cur)}</div>
+                <div style="font-size:12px;font-weight:700;color:${plCls};margin-top:2px;">${pl>=0?'+':'-'}${fmt(pl)} (${pl>=0?'+':''}${plPct}%)</div>
+              </div>`;
+            } else {
+              rightSide = `<div class="parked-item-amt">${fmt(p.amount||0)}</div>`;
+            }
           } else if (loanP) {
             const matV = parkedMaturityValue(p);
-            const curPct = (p.amount||0) > 0 ? (loanP.interest / p.amount) * 100 : 0;
-            // Pick the headline to display:
-            //  - If a maturity date is set, the FINAL maturity amount is the headline (works for both active & matured)
-            //  - If no end date, show running current value
-            const showMatV = !!matV;
-            const headerLabel  = loanP.closed ? 'MATURED AMOUNT'
-                               : showMatV    ? 'WILL MATURE TO'
-                                             : 'CURRENT VALUE';
+            const isMatured = loanP.closed;
+            const showMatV  = !!matV;
+            // Meta: rate + status only (one line)
+            const statusBit = isMatured ? `Matured ${fmtDate(p.closeDate)}`
+                            : showMatV  ? `Matures ${fmtDate(p.closeDate)}`
+                                        : `Since ${fmtDate(p.date)}`;
+            meta = `💹 ${p.interestPct}% · ${statusBit}`;
+            // Box: single headline amount + profit
+            const headerLabel  = isMatured ? 'MATURED' : showMatV ? 'MATURES TO' : 'CURRENT';
             const headerAmount = showMatV ? matV.maturityAmount : loanP.currentValue;
             const headerProfit = headerAmount - (p.amount || 0);
-            const headerPct    = (p.amount||0) > 0 ? (headerProfit / p.amount) * 100 : 0;
-            const isMatured = loanP.closed;
+            const headerPct    = (p.amount||0) > 0 ? Math.round((headerProfit / p.amount) * 100) : 0;
             const boxBg     = isMatured ? 'rgba(16,185,129,0.15)' : 'rgba(124,58,237,0.12)';
             const boxBorder = isMatured ? 'rgba(16,185,129,0.45)' : 'rgba(124,58,237,0.4)';
             const boxText   = isMatured ? '#065f46' : '#5b21b6';
             const profText  = isMatured ? '#059669' : '#7c3aed';
-            const totalYrs  = matV ? matV.years.toFixed(2) : (loanP.days/365).toFixed(2);
-            // For active FD: also show current accrued
-            const runningLine = (showMatV && !isMatured)
-              ? `<div style="font-size:10px;color:var(--muted);margin-top:3px;">Now: ${fmt(loanP.currentValue)} · +${fmt(loanP.interest)} (+${curPct.toFixed(1)}%)</div>`
-              : '';
-            const statusTxt  = isMatured ? 'Matured' : (showMatV ? 'Active' : 'Active · no end date');
             rightSide = `<div style="text-align:right;">
-              <div style="display:inline-block;background:${boxBg};border:1.5px solid ${boxBorder};border-radius:10px;padding:6px 10px;margin-bottom:3px;text-align:right;">
+              <div style="display:inline-block;background:${boxBg};border:1.5px solid ${boxBorder};border-radius:10px;padding:5px 10px;text-align:right;">
                 <div style="font-size:9px;font-weight:700;color:${boxText};letter-spacing:.4px;">${headerLabel}</div>
                 <div style="font-size:16px;font-weight:800;color:${boxText};">${fmt(headerAmount)}</div>
-                <div style="font-size:11px;font-weight:800;color:${profText};margin-top:2px;">Profit: +${fmt(headerProfit)} (+${headerPct.toFixed(1)}%)</div>
+                <div style="font-size:11px;font-weight:800;color:${profText};margin-top:1px;">+${fmt(headerProfit)} (+${headerPct}%)</div>
               </div>
-              ${runningLine}
-              <div style="font-size:10px;color:var(--muted);">principal ${fmt(p.amount||0)} · ${totalYrs}y · ${statusTxt}</div>
             </div>`;
           } else {
+            // Generic entry: just date in meta + amount on right
+            meta = fmtDate(p.date);
             rightSide = `<div class="parked-item-amt">${fmt(p.amount||0)}</div>`;
           }
+
+          if (p.notes) meta += (meta ? ' · ' : '') + escapeHtml(p.notes);
+
           return `
           <div class="parked-item" onclick="openParkedModal('${p.id}')" style="cursor:pointer;">
             <div class="parked-item-info">
               <div class="parked-item-name">${escapeHtml(p.name)}</div>
-              <div class="parked-item-meta">${goldPart}${loanPart}${p.date || ''}${p.notes ? ' · ' + escapeHtml(p.notes) : ''}</div>
+              <div class="parked-item-meta">${meta}</div>
             </div>
             ${rightSide}
           </div>`;
