@@ -5486,14 +5486,13 @@ function renderParked() {
             const yrs = (loanP.days / 365).toFixed(2);
             const curPct = (p.amount||0) > 0 ? (loanP.interest / p.amount) * 100 : 0;
             if (loanP.closed) {
-              // ── Matured FD/loan: emphasize the profit earned ──
+              // ── Matured FD/loan: show MATURED AMOUNT + profit prominently ──
               rightSide = `<div style="text-align:right;">
-                <div style="display:inline-block;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);border-radius:8px;padding:4px 8px;margin-bottom:3px;">
-                  <div style="font-size:9px;font-weight:700;color:#065f46;letter-spacing:.4px;">PROFIT EARNED</div>
-                  <div style="font-size:14px;font-weight:800;color:#059669;">+${fmt(loanP.interest)}</div>
-                  <div style="font-size:10px;font-weight:700;color:#059669;">+${curPct.toFixed(1)}%</div>
+                <div style="display:inline-block;background:rgba(16,185,129,0.15);border:1.5px solid rgba(16,185,129,0.4);border-radius:10px;padding:6px 10px;margin-bottom:3px;text-align:right;">
+                  <div style="font-size:9px;font-weight:700;color:#065f46;letter-spacing:.4px;">MATURED AMOUNT</div>
+                  <div style="font-size:16px;font-weight:800;color:#065f46;">${fmt(loanP.currentValue)}</div>
+                  <div style="font-size:11px;font-weight:800;color:#059669;margin-top:2px;">Profit: +${fmt(loanP.interest)} (+${curPct.toFixed(1)}%)</div>
                 </div>
-                <div class="parked-item-amt">${fmt(loanP.currentValue)}</div>
                 <div style="font-size:10px;color:var(--muted);">principal ${fmt(p.amount||0)} · ${yrs}y · Matured</div>
               </div>`;
             } else {
