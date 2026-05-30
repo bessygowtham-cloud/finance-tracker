@@ -2070,7 +2070,7 @@
     </div>
 
     <div class="form-group">
-      <label class="form-label">Date</label>
+      <label class="form-label" id="parkedDateLabel">Date</label>
       <input type="date" class="form-input" id="parkedDate" />
     </div>
 
@@ -5268,13 +5268,17 @@ function renderParkedTypeGrid() {
   const hasInterest = isLoan || isFd;
   goldFields.style.display = isGold ? '' : 'none';
   loanFields.style.display = hasInterest ? '' : 'none';
-  // Close/maturity date only relevant when editing an existing entry
-  document.getElementById('parkedCloseDateGroup').style.display = (hasInterest && _parkedEditingId) ? '' : 'none';
+  // FD: always show maturity date (it's a known future date when you open an FD)
+  // Loan: only on edit (loans are often open-ended)
+  document.getElementById('parkedCloseDateGroup').style.display = (isFd || (isLoan && _parkedEditingId)) ? '' : 'none';
   // Label adapts: FDs have a Maturity Date, loans have a Close Date
   const closeLbl = document.getElementById('parkedCloseDateLabel');
   if (closeLbl) closeLbl.innerHTML = isFd
-    ? 'FD Maturity Date <span style="font-weight:400;text-transform:none;letter-spacing:0;">(leave empty if active)</span>'
+    ? 'FD Maturity Date'
     : 'Loan Close Date <span style="font-weight:400;text-transform:none;letter-spacing:0;">(leave empty if active)</span>';
+  // Date label: "Start Date" for FD/loan, "Date" otherwise
+  const dateLbl = document.getElementById('parkedDateLabel');
+  if (dateLbl) dateLbl.textContent = (isFd || isLoan) ? 'Start Date' : 'Date';
   if (isLoan)                                { lbl.textContent = 'Lent to (name)'; inp.placeholder = 'e.g., Ravi, Cousin Suresh'; }
   else if (_parkedSelectedType === 'partnership') { lbl.textContent = 'Business / Shop name'; inp.placeholder = 'e.g., Saravana Stores'; }
   else if (_parkedSelectedType === 'fd')     { lbl.textContent = 'Bank / FD name'; inp.placeholder = 'e.g., SBI FD 2026'; }
@@ -5352,15 +5356,33 @@ function parkedGoldCurrent(p) {
   const rate = p.purity === '24' ? _goldRateCache.r24 : _goldRateCache.r22;
   return p.grams * rate;
 }
-// Simple-interest profit for a loan-given or FD entry. Returns { interest, days, currentValue, closed }
+// Simple-interest accrual on a loan/FD entry up to today (capped at maturity if matured).
 function parkedInterestProfit(p) {
   if ((p.type !== 'loan' && p.type !== 'fd') || !p.interestPct || !p.date) return null;
   const start = new Date(p.date);
-  const end   = p.closeDate ? new Date(p.closeDate) : new Date();
-  const days  = Math.max(0, Math.floor((end - start) / (1000*60*60*24)));
-  // Simple interest: P × R × T (T in years)
+  const today = new Date();
+  // For current accrual: end = today, but if matured, cap at close/maturity date
+  let end = today;
+  let matured = false;
+  if (p.closeDate) {
+    const close = new Date(p.closeDate);
+    if (close <= today) { end = close; matured = true; }
+  }
+  const days = Math.max(0, Math.floor((end - start) / (1000*60*60*24)));
   const interest = (p.amount || 0) * (p.interestPct / 100) * (days / 365);
-  return { interest, days, currentValue: (p.amount||0) + interest, closed: !!p.closeDate };
+  return { interest, days, currentValue: (p.amount||0) + interest, closed: matured };
+}
+// Maturity value when an end date is given (simple interest over the full term).
+function parkedMaturityValue(p) {
+  if ((p.type !== 'fd' && p.type !== 'loan') || !p.interestPct || !p.date || !p.closeDate) return null;
+  const start = new Date(p.date);
+  const end   = new Date(p.closeDate);
+  const days  = Math.max(0, Math.floor((end - start) / (1000*60*60*24)));
+  const years = days / 365;
+  const interest = (p.amount || 0) * (p.interestPct / 100) * years;
+  const maturityAmount = (p.amount || 0) + interest;
+  const pct = (p.amount || 0) > 0 ? (interest / p.amount) * 100 : 0;
+  return { interest, years, maturityAmount, pct };
 }
 
 function renderParked() {
@@ -5460,11 +5482,18 @@ function renderParked() {
               <div style="font-size:10px;color:var(--muted);">purchased ${fmt(p.amount||0)}</div>
             </div>`;
           } else if (loanP) {
+            const matV = parkedMaturityValue(p);
             const interestColor = loanP.closed ? 'var(--muted)' : '#10b981';
             const yrs = (loanP.days / 365).toFixed(2);
+            const curPct = (p.amount||0) > 0 ? (loanP.interest / p.amount) * 100 : 0;
+            let maturityLine = '';
+            if (matV && !loanP.closed) {
+              maturityLine = `<div style="font-size:10px;color:#7c3aed;font-weight:700;margin-top:2px;">→ Matures ${fmt(matV.maturityAmount)} (+${matV.pct.toFixed(1)}%)</div>`;
+            }
             rightSide = `<div style="text-align:right;">
               <div class="parked-item-amt">${fmt(loanP.currentValue)}</div>
-              <div style="font-size:11px;font-weight:700;color:${interestColor};">+${fmt(loanP.interest)}</div>
+              <div style="font-size:11px;font-weight:700;color:${interestColor};">+${fmt(loanP.interest)} (+${curPct.toFixed(1)}%)</div>
+              ${maturityLine}
               <div style="font-size:10px;color:var(--muted);">principal ${fmt(p.amount||0)} · ${yrs}y</div>
             </div>`;
           } else {
