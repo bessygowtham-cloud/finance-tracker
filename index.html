@@ -5487,14 +5487,15 @@ function renderParked() {
             const yrs = (loanP.days / 365).toFixed(2);
             const curPct = (p.amount||0) > 0 ? (loanP.interest / p.amount) * 100 : 0;
             let maturityLine = '';
-            if (matV && !loanP.closed) {
-              maturityLine = `<div style="font-size:10px;color:#7c3aed;font-weight:700;margin-top:2px;">→ Matures ${fmt(matV.maturityAmount)} (+${matV.pct.toFixed(1)}%)</div>`;
+            if (matV) {
+              const matLabel = loanP.closed ? 'Matured' : (p.type==='fd' ? 'Matures' : 'On close');
+              maturityLine = `<div style="font-size:11px;color:#7c3aed;font-weight:800;margin-top:3px;background:rgba(124,58,237,0.1);padding:2px 6px;border-radius:6px;display:inline-block;">→ ${matLabel}: ${fmt(matV.maturityAmount)} (+${matV.pct.toFixed(1)}%)</div>`;
             }
             rightSide = `<div style="text-align:right;">
               <div class="parked-item-amt">${fmt(loanP.currentValue)}</div>
               <div style="font-size:11px;font-weight:700;color:${interestColor};">+${fmt(loanP.interest)} (+${curPct.toFixed(1)}%)</div>
               ${maturityLine}
-              <div style="font-size:10px;color:var(--muted);">principal ${fmt(p.amount||0)} · ${yrs}y</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:3px;">principal ${fmt(p.amount||0)} · ${yrs}y</div>
             </div>`;
           } else {
             rightSide = `<div class="parked-item-amt">${fmt(p.amount||0)}</div>`;
