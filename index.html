@@ -5433,18 +5433,27 @@ function renderParked() {
           const cur = parkedGoldCurrent(p);
           const isGoldLive = p.type==='gold' && p.grams && cur != null;
           const loanP = parkedInterestProfit(p);
-          const goldPart = (p.type==='gold' && p.grams) ? `🥇 ${p.grams}g ${p.purity||'22'}K · ` : '';
+          let goldPart = '';
+          if (p.type==='gold' && p.grams) {
+            const purchasePerG = (p.amount||0) / p.grams;
+            const currentPerG = _goldRateCache ? (p.purity==='24' ? _goldRateCache.r24 : _goldRateCache.r22) : null;
+            goldPart = `🥇 ${p.grams}g ${p.purity||'22'}K`;
+            if (purchasePerG) goldPart += ` · paid ₹${Math.round(purchasePerG).toLocaleString('en-IN')}/g`;
+            if (currentPerG) goldPart += ` · now ₹${currentPerG.toLocaleString('en-IN')}/g`;
+            goldPart += ' · ';
+          }
           const closedLabel = p.type==='fd' ? 'Matured' : 'Closed';
           const loanPart = ((p.type==='loan' || p.type==='fd') && p.interestPct) ?
             `💹 ${p.interestPct}%/yr · ${p.closeDate ? closedLabel + ' ' + p.closeDate : 'Active'} · ` : '';
           let rightSide;
           if (isGoldLive) {
             const pl = cur - (p.amount||0);
+            const plPct = (p.amount||0) > 0 ? (pl / p.amount) * 100 : 0;
             const plCls = pl>=0?'#10b981':'var(--expense)';
             rightSide = `<div style="text-align:right;">
               <div class="parked-item-amt">${fmt(cur)}</div>
-              <div style="font-size:11px;font-weight:700;color:${plCls};">${pl>=0?'+':'-'}${fmt(Math.abs(pl))}</div>
-              <div style="font-size:10px;color:var(--muted);">paid ${fmt(p.amount||0)}</div>
+              <div style="font-size:11px;font-weight:700;color:${plCls};">${pl>=0?'+':'-'}${fmt(Math.abs(pl))} (${pl>=0?'+':''}${plPct.toFixed(1)}%)</div>
+              <div style="font-size:10px;color:var(--muted);">purchased ${fmt(p.amount||0)}</div>
             </div>`;
           } else if (loanP) {
             const interestColor = loanP.closed ? 'var(--muted)' : '#10b981';
