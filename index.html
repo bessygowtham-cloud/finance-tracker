@@ -2035,18 +2035,20 @@
       <input type="text" class="form-input" id="parkedName" placeholder="e.g., SBI FD, Loan to Ravi, Saravana Shop" />
     </div>
 
-    <!-- Gold-specific: purity + grams -->
+    <!-- Gold-specific: purity + grams (side by side) -->
     <div id="parkedGoldFields" style="display:none;">
-      <div class="form-group">
-        <label class="form-label">Purity</label>
-        <div class="sub-chips-wrap" id="parkedPurityChips">
-          <button class="sub-chip" id="parkedPurity22" onclick="setParkedPurity('22')">22K</button>
-          <button class="sub-chip" id="parkedPurity24" onclick="setParkedPurity('24')">24K</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label class="form-label">Purity</label>
+          <div class="sub-chips-wrap" id="parkedPurityChips">
+            <button class="sub-chip" id="parkedPurity22" onclick="setParkedPurity('22')">22K</button>
+            <button class="sub-chip" id="parkedPurity24" onclick="setParkedPurity('24')">24K</button>
+          </div>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Grams</label>
-        <input type="number" class="form-input" id="parkedGrams" placeholder="e.g., 10" inputmode="decimal" step="0.01" />
+        <div class="form-group">
+          <label class="form-label">Grams</label>
+          <input type="number" class="form-input" id="parkedGrams" placeholder="e.g., 10" inputmode="decimal" step="0.01" />
+        </div>
       </div>
     </div>
 
