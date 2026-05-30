@@ -5483,32 +5483,37 @@ function renderParked() {
             </div>`;
           } else if (loanP) {
             const matV = parkedMaturityValue(p);
-            const yrs = (loanP.days / 365).toFixed(2);
             const curPct = (p.amount||0) > 0 ? (loanP.interest / p.amount) * 100 : 0;
-            if (loanP.closed) {
-              // ── Matured FD/loan: show MATURED AMOUNT + profit prominently ──
-              rightSide = `<div style="text-align:right;">
-                <div style="display:inline-block;background:rgba(16,185,129,0.15);border:1.5px solid rgba(16,185,129,0.4);border-radius:10px;padding:6px 10px;margin-bottom:3px;text-align:right;">
-                  <div style="font-size:9px;font-weight:700;color:#065f46;letter-spacing:.4px;">MATURED AMOUNT</div>
-                  <div style="font-size:16px;font-weight:800;color:#065f46;">${fmt(loanP.currentValue)}</div>
-                  <div style="font-size:11px;font-weight:800;color:#059669;margin-top:2px;">Profit: +${fmt(loanP.interest)} (+${curPct.toFixed(1)}%)</div>
-                </div>
-                <div style="font-size:10px;color:var(--muted);">principal ${fmt(p.amount||0)} · ${yrs}y · Matured</div>
-              </div>`;
-            } else {
-              // ── Active FD/loan ──
-              let maturityLine = '';
-              if (matV) {
-                const matLabel = p.type==='fd' ? 'Matures' : 'On close';
-                maturityLine = `<div style="font-size:11px;color:#7c3aed;font-weight:800;margin-top:3px;background:rgba(124,58,237,0.1);padding:2px 6px;border-radius:6px;display:inline-block;">→ ${matLabel}: ${fmt(matV.maturityAmount)} (+${matV.pct.toFixed(1)}%)</div>`;
-              }
-              rightSide = `<div style="text-align:right;">
-                <div class="parked-item-amt">${fmt(loanP.currentValue)}</div>
-                <div style="font-size:11px;font-weight:700;color:#10b981;">+${fmt(loanP.interest)} (+${curPct.toFixed(1)}%)</div>
-                ${maturityLine}
-                <div style="font-size:10px;color:var(--muted);margin-top:3px;">principal ${fmt(p.amount||0)} · ${yrs}y</div>
-              </div>`;
-            }
+            // Pick the headline to display:
+            //  - If a maturity date is set, the FINAL maturity amount is the headline (works for both active & matured)
+            //  - If no end date, show running current value
+            const showMatV = !!matV;
+            const headerLabel  = loanP.closed ? 'MATURED AMOUNT'
+                               : showMatV    ? 'WILL MATURE TO'
+                                             : 'CURRENT VALUE';
+            const headerAmount = showMatV ? matV.maturityAmount : loanP.currentValue;
+            const headerProfit = headerAmount - (p.amount || 0);
+            const headerPct    = (p.amount||0) > 0 ? (headerProfit / p.amount) * 100 : 0;
+            const isMatured = loanP.closed;
+            const boxBg     = isMatured ? 'rgba(16,185,129,0.15)' : 'rgba(124,58,237,0.12)';
+            const boxBorder = isMatured ? 'rgba(16,185,129,0.45)' : 'rgba(124,58,237,0.4)';
+            const boxText   = isMatured ? '#065f46' : '#5b21b6';
+            const profText  = isMatured ? '#059669' : '#7c3aed';
+            const totalYrs  = matV ? matV.years.toFixed(2) : (loanP.days/365).toFixed(2);
+            // For active FD: also show current accrued
+            const runningLine = (showMatV && !isMatured)
+              ? `<div style="font-size:10px;color:var(--muted);margin-top:3px;">Now: ${fmt(loanP.currentValue)} · +${fmt(loanP.interest)} (+${curPct.toFixed(1)}%)</div>`
+              : '';
+            const statusTxt  = isMatured ? 'Matured' : (showMatV ? 'Active' : 'Active · no end date');
+            rightSide = `<div style="text-align:right;">
+              <div style="display:inline-block;background:${boxBg};border:1.5px solid ${boxBorder};border-radius:10px;padding:6px 10px;margin-bottom:3px;text-align:right;">
+                <div style="font-size:9px;font-weight:700;color:${boxText};letter-spacing:.4px;">${headerLabel}</div>
+                <div style="font-size:16px;font-weight:800;color:${boxText};">${fmt(headerAmount)}</div>
+                <div style="font-size:11px;font-weight:800;color:${profText};margin-top:2px;">Profit: +${fmt(headerProfit)} (+${headerPct.toFixed(1)}%)</div>
+              </div>
+              ${runningLine}
+              <div style="font-size:10px;color:var(--muted);">principal ${fmt(p.amount||0)} · ${totalYrs}y · ${statusTxt}</div>
+            </div>`;
           } else {
             rightSide = `<div class="parked-item-amt">${fmt(p.amount||0)}</div>`;
           }
