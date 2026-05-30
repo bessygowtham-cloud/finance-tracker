@@ -4637,7 +4637,7 @@ function renderPurchases() {
         <span style="color:var(--primary);font-weight:700;">${fmt(grpTotal)}</span>
       </div>
       <div class="card txn-list-card" style="padding:0 16px;margin:0 16px 8px;">
-        ${grp.items.map(p => purchaseItemHTML(p)).join('')}
+        ${grp.items.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).map(p => purchaseItemHTML(p)).join('')}
       </div>`;
   }).join('');
 }
@@ -4977,7 +4977,7 @@ function renderInvestments() {
   if (!liveInvestments.length) {
     listEl.innerHTML = '<div class="empty-inner" style="padding:30px 16px;text-align:center;color:var(--muted);">No investments yet.<br>Tap <b>+ Add</b> to start tracking your portfolio.</div>';
   } else {
-    listEl.innerHTML = liveInvestments.slice().sort((a,b)=>(b.currentValue||0)-(a.currentValue||0)).map(inv => {
+    listEl.innerHTML = liveInvestments.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).map(inv => {
       const t = INV_TYPES.find(x => x.id === inv.type) || INV_TYPES[INV_TYPES.length-1];
       const pl = (inv.currentValue||0) - (inv.invested||0);
       const pct = inv.invested>0 ? (pl/inv.invested)*100 : 0;
@@ -5421,7 +5421,9 @@ function renderParked() {
 
   // Group by type
   const sections = PARKED_TYPES.map(t => {
-    const items = (state.parkedMoney || []).filter(p => p.type === t.id);
+    const items = (state.parkedMoney || [])
+      .filter(p => p.type === t.id)
+      .sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)); // latest first
     if (!items.length) return '';
     const subtotal = items.reduce((s,i) => s + (i.amount||0), 0);
     return `
