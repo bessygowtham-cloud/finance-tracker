@@ -4819,37 +4819,72 @@ function setGoldRate(r22, source) {
 }
 
 async function tryFetchLiveChennai() {
-  // Try a couple of CORS proxies in order
   const target = 'https://www.livechennai.com/gold_silverrate.asp';
+  // Multiple CORS proxies — try in order until one works
   const proxies = [
-    'https://api.allorigins.win/get?url=' + encodeURIComponent(target),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(target),
+    'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(target),
     'https://corsproxy.io/?' + encodeURIComponent(target),
+    'https://api.allorigins.win/get?url=' + encodeURIComponent(target),
   ];
+  // Sanity-check helper
+  const sane = v => v && v >= 3000 && v <= 25000;
+
   for (const url of proxies) {
     try {
-      const res = await fetch(url);
-      const data = await res.text();
-      // allorigins returns JSON with .contents; corsproxy returns raw HTML
-      let html = data;
-      try { const j = JSON.parse(data); if (j.contents) html = j.contents; } catch(_) {}
-      // Normalize
-      const text = html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&#?\w+;/g,' ').replace(/\s+/g, ' ');
-      // Find 22 Carat / 22ct / 916 prices — pick the nearest ₹ number per gram
-      // livechennai shows: "22 Carat Gold / Gram   Rs. 8,500"
-      let m22 = text.match(/22\s*(?:carat|ct|k|kt|crt)[^0-9]{0,80}(?:Rs\.?|₹|INR)?\s*([\d,]{4,8})/i);
-      let m24 = text.match(/24\s*(?:carat|ct|k|kt|crt)[^0-9]{0,80}(?:Rs\.?|₹|INR)?\s*([\d,]{4,8})/i);
-      let r22 = m22 ? parseInt(m22[1].replace(/,/g,'')) : null;
-      let r24 = m24 ? parseInt(m24[1].replace(/,/g,'')) : null;
-      // Sanity range for /gram price (₹3,000–₹25,000)
-      const sane = v => v && v >= 3000 && v <= 25000;
-      if (sane(r22)) return { r22, r24: sane(r24) ? r24 : Math.round(r22 * 24/22), source: 'livechennai.com' };
-      // Try per-8g (sovereign) fallback: divide by 8
-      if (r22 && r22 > 25000 && r22 < 200000) {
-        r22 = Math.round(r22 / 8);
-        if (sane(r22)) return { r22, r24: Math.round(r22 * 24/22), source: 'livechennai.com (sovereign)' };
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) { console.warn('Proxy bad status', url, res.status); continue; }
+      const raw = await res.text();
+      // allorigins (get) wraps in JSON {contents:...}; raw / codetabs / corsproxy return HTML directly
+      let html = raw;
+      if (raw.trim().startsWith('{')) {
+        try { const j = JSON.parse(raw); if (j.contents) html = j.contents; } catch(_) {}
       }
+      // Strip tags into a single normalized text string (preserves digits inside parentheses like "(916)")
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&#?\w+;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // Extract using multiple lenient patterns (digit chars ARE allowed in the gap, e.g. "(916)").
+      // Anchor on currency token (Rs / ₹ / INR) immediately before the number to find the actual price.
+      const findRate = (label) => {
+        const re = new RegExp(label + '\\s*(?:carat|ct|kt|k)?\\b[\\s\\S]{0,250}?(?:Rs\\.?|₹|INR)\\s*([\\d,]{4,8})', 'i');
+        const m = text.match(re);
+        if (m) {
+          const v = parseInt(m[1].replace(/,/g, ''));
+          if (sane(v)) return v;
+          // sometimes the per-8g sovereign is shown — divide
+          if (v > 25000 && v < 250000) return Math.round(v / 8);
+        }
+        // Fallback: scan all 4-5 digit numbers within 300 chars after label, pick the first sane one
+        const idx = text.search(new RegExp(label, 'i'));
+        if (idx >= 0) {
+          const slice = text.substr(idx, 400);
+          const nums = slice.match(/\d{1,3}(?:,\d{3})+|\d{4,6}/g) || [];
+          for (const n of nums) {
+            const v = parseInt(n.replace(/,/g,''));
+            if (sane(v)) return v;
+            if (v > 25000 && v < 250000 && sane(Math.round(v/8))) return Math.round(v/8);
+          }
+        }
+        return null;
+      };
+
+      const r22 = findRate('22');
+      const r24 = findRate('24');
+      if (sane(r22)) {
+        console.log('LiveChennai parsed via', url, '→ 22K:', r22, '24K:', r24);
+        return { r22, r24: sane(r24) ? r24 : Math.round(r22 * 24/22), source: 'livechennai.com' };
+      }
+      console.warn('Proxy returned data but parse failed', url, 'len=', text.length);
     } catch(e) {
-      console.warn('Proxy failed', url, e);
+      console.warn('Proxy failed', url, e.message || e);
     }
   }
   return null;
@@ -5338,17 +5373,41 @@ function renderParked() {
   // Gold portfolio summary (invested vs current vs P/L)
   const goldItems = (state.parkedMoney || []).filter(p => p.type==='gold' && p.grams);
   let goldSummary = '';
+  if (goldItems.length && !_goldRateCache) {
+    // Show loading/manual fallback panel
+    goldSummary = `
+      <div style="margin:14px 16px 0;padding:14px 16px;border-radius:18px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);text-align:center;">
+        <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px;">🥇 Live Chennai Gold rate</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Fetching from livechennai.com...</div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button onclick="refreshGoldRate(true)" style="background:rgba(245,158,11,0.25);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:6px 14px;font-size:11px;font-weight:700;color:#92400e;cursor:pointer;">↻ Try fetch</button>
+          <button onclick="promptManualGoldRate()" style="background:rgba(255,255,255,0.6);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:6px 14px;font-size:11px;font-weight:700;color:#92400e;cursor:pointer;">✏️ Set manually</button>
+        </div>
+      </div>`;
+  }
   if (goldItems.length && _goldRateCache) {
     const gInvested = goldItems.reduce((s,p)=>s+(p.amount||0),0);
     const gCurrent  = goldItems.reduce((s,p)=>s+(parkedGoldCurrent(p)||p.amount||0),0);
     const gPL = gCurrent - gInvested;
     const gPct = gInvested>0 ? (gPL/gInvested)*100 : 0;
     const cls = gPL>=0?'profit':'loss';
+    const ago = Math.round((Date.now() - _goldRateCache.ts) / 60000);
+    const when = ago < 1 ? 'just now' : (ago < 60 ? ago + 'm ago' : Math.round(ago/60) + 'h ago');
     goldSummary = `
       <div style="margin:14px 16px 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(245,158,11,0.14),rgba(251,191,36,0.10));border:1px solid rgba(245,158,11,0.3);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <span style="font-size:12px;font-weight:700;color:#92400e;">🥇 Gold (live Chennai)</span>
-          <button onclick="refreshGoldRate(true)" style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:3px 10px;font-size:10px;font-weight:700;color:#92400e;cursor:pointer;">↻ ${_goldRateCache.r22.toLocaleString('en-IN')}/g 22K</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:12px;font-weight:700;color:#92400e;">🥇 Live Chennai Gold</span>
+          <button onclick="refreshGoldRate(true)" style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:3px 10px;font-size:10px;font-weight:700;color:#92400e;cursor:pointer;">↻ ${when}</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div style="background:rgba(255,255,255,0.5);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:8px 10px;text-align:center;">
+            <div style="font-size:10px;color:#92400e;font-weight:700;">22K / gram</div>
+            <div style="font-size:16px;font-weight:800;color:var(--text);">₹${_goldRateCache.r22.toLocaleString('en-IN')}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.5);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:8px 10px;text-align:center;">
+            <div style="font-size:10px;color:#92400e;font-weight:700;">24K / gram</div>
+            <div style="font-size:16px;font-weight:800;color:var(--text);">₹${_goldRateCache.r24.toLocaleString('en-IN')}</div>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
           <div><div style="font-size:10px;color:var(--muted);font-weight:700;">INVESTED</div><div style="font-size:14px;font-weight:800;">${fmt(gInvested)}</div></div>
