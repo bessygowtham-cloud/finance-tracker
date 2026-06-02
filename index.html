@@ -5459,6 +5459,12 @@ function setParkedLoanFilter(f) {
   try { localStorage.setItem('parkedLoanFilter', f); } catch(_) {}
   renderParked();
 }
+let _parkedFdFilter = (function(){ try { return localStorage.getItem('parkedFdFilter') || 'all'; } catch(_) { return 'all'; } })();
+function setParkedFdFilter(f) {
+  _parkedFdFilter = f;
+  try { localStorage.setItem('parkedFdFilter', f); } catch(_) {}
+  renderParked();
+}
 function isLoanClosed(p) {
   if (!p.closeDate) return false;
   return new Date(p.closeDate) <= new Date();
@@ -5557,32 +5563,35 @@ function renderParked() {
       .sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)); // latest first
     if (!items.length) return '';
 
-    // Loan-only filter: open / closed
-    let loanFilterPills = '';
-    if (t.id === 'loan') {
+    // Open/Closed filter for both FD and Loan Given
+    let filterPills = '';
+    const hasFilter = t.id === 'loan' || t.id === 'fd';
+    let activeFilter = 'all';
+    if (hasFilter) {
+      const setterName = t.id === 'fd' ? 'setParkedFdFilter' : 'setParkedLoanFilter';
+      activeFilter = t.id === 'fd' ? _parkedFdFilter : _parkedLoanFilter;
       const openItems   = items.filter(p => !isLoanClosed(p));
       const closedItems = items.filter(p =>  isLoanClosed(p));
       const pill = (id, label, count) => `
-        <button onclick="setParkedLoanFilter('${id}');event.stopPropagation();" style="padding:3px 10px;border-radius:99px;border:1px solid ${_parkedLoanFilter===id?'rgba(99,102,241,0.55)':'var(--input-border)'};background:${_parkedLoanFilter===id?'rgba(99,102,241,0.16)':'var(--input-bg)'};color:${_parkedLoanFilter===id?'var(--primary)':'var(--muted)'};font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">${label}${count!=null?` <span style="opacity:.8;">${count}</span>`:''}</button>
+        <button onclick="${setterName}('${id}');event.stopPropagation();" style="padding:3px 10px;border-radius:99px;border:1px solid ${activeFilter===id?'rgba(99,102,241,0.55)':'var(--input-border)'};background:${activeFilter===id?'rgba(99,102,241,0.16)':'var(--input-bg)'};color:${activeFilter===id?'var(--primary)':'var(--muted)'};font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">${label}${count!=null?` <span style="opacity:.8;">${count}</span>`:''}</button>
       `;
-      loanFilterPills = `<div style="display:flex;gap:5px;margin-left:8px;">
+      filterPills = `<div style="display:flex;gap:5px;">
         ${pill('all','All',items.length)}
         ${pill('open','Open',openItems.length)}
         ${pill('closed','Closed',closedItems.length)}
       </div>`;
-      if (_parkedLoanFilter === 'open')   items = openItems;
-      if (_parkedLoanFilter === 'closed') items = closedItems;
+      if (activeFilter === 'open')   items = openItems;
+      if (activeFilter === 'closed') items = closedItems;
     }
 
     if (!items.length) {
       // Show header with filters even if filter produced empty
-      if (t.id === 'loan') {
+      if (hasFilter) {
         return `<div class="parked-type-section">
           <div class="parked-type-header" style="flex-wrap:wrap;gap:8px;">
-            <span class="parked-type-emoji">${t.emoji}</span>
-            ${loanFilterPills}
+            ${filterPills}
           </div>
-          <div class="parked-empty" style="padding:18px 16px;">No ${_parkedLoanFilter} loans.</div>
+          <div class="parked-empty" style="padding:18px 16px;">No ${activeFilter} ${t.name.toLowerCase()} entries.</div>
         </div>`;
       }
       return '';
@@ -5595,19 +5604,22 @@ function renderParked() {
     const profitChip = (sectionProfit !== 0)
       ? `<span style="font-size:11px;font-weight:800;color:${sProfitClr};background:${sectionProfit>=0?'rgba(16,185,129,0.12)':'rgba(239,68,68,0.12)'};padding:2px 8px;border-radius:99px;">${sProfitSign}${fmt(Math.abs(sectionProfit))}</span>`
       : '';
-    // For loan section: title is replaced by pill filters; for others: keep title
-    const headerTitle = (t.id === 'loan')
+    // For FD & Loan sections: filter pills ARE the heading (no emoji, no title)
+    const headerTitle = hasFilter
       ? '' // pills serve as heading
       : `<span class="parked-type-title">${t.name}</span>`;
+    const headerEmoji = hasFilter
+      ? '' // emoji also removed for filter-equipped sections
+      : `<span class="parked-type-emoji">${t.emoji}</span>`;
     // For Gold section, inject the live rate / invested-current-P&L panel
     const goldPanel = t.id === 'gold' ? goldSummary : '';
     return `
       ${goldPanel}
       <div class="parked-type-section">
         <div class="parked-type-header" style="flex-wrap:wrap;gap:6px;">
-          <span class="parked-type-emoji">${t.emoji}</span>
+          ${headerEmoji}
           ${headerTitle}
-          ${loanFilterPills}
+          ${filterPills}
           <span style="margin-left:auto;display:flex;align-items:center;gap:6px;">
             ${profitChip}
             <span class="parked-type-total">${fmt(subtotal)}</span>
