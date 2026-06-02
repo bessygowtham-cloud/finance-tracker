@@ -5364,27 +5364,50 @@ function parkedGoldCurrent(p) {
   const rate = p.purity === '24' ? _goldRateCache.r24 : _goldRateCache.r22;
   return p.grams * rate;
 }
-// Simple-interest accrual on a loan/FD entry up to today (capped at maturity if matured).
+// Whole months between two dates (counts as a full month once day-of-month is reached).
+function monthsBetween(d1, d2) {
+  let m = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+  if (d2.getDate() < d1.getDate()) m--;
+  return Math.max(0, m);
+}
+
+// Interest accrual on a loan/FD entry up to today (capped at maturity if matured).
+// LOAN: monthly basis — monthly_interest = principal × rate / 12, total = months × monthly.
+// FD:   simple interest over days/365 (annual).
 function parkedInterestProfit(p) {
   if ((p.type !== 'loan' && p.type !== 'fd') || !p.interestPct || !p.date) return null;
   const start = new Date(p.date);
   const today = new Date();
-  // For current accrual: end = today, but if matured, cap at close/maturity date
   let end = today;
   let matured = false;
   if (p.closeDate) {
     const close = new Date(p.closeDate);
     if (close <= today) { end = close; matured = true; }
   }
+  if (p.type === 'loan') {
+    const months = monthsBetween(start, end);
+    const monthlyInt = (p.amount || 0) * (p.interestPct / 100) / 12;
+    const interest = monthlyInt * months;
+    return { interest, months, monthlyInt, currentValue: (p.amount||0) + interest, closed: matured, isLoan: true };
+  }
   const days = Math.max(0, Math.floor((end - start) / (1000*60*60*24)));
   const interest = (p.amount || 0) * (p.interestPct / 100) * (days / 365);
   return { interest, days, currentValue: (p.amount||0) + interest, closed: matured };
 }
-// Maturity value when an end date is given (simple interest over the full term).
+
+// Maturity value when an end date is given.
 function parkedMaturityValue(p) {
   if ((p.type !== 'fd' && p.type !== 'loan') || !p.interestPct || !p.date || !p.closeDate) return null;
   const start = new Date(p.date);
   const end   = new Date(p.closeDate);
+  if (p.type === 'loan') {
+    const months = monthsBetween(start, end);
+    const monthlyInt = (p.amount || 0) * (p.interestPct / 100) / 12;
+    const interest = monthlyInt * months;
+    const maturityAmount = (p.amount || 0) + interest;
+    const pct = (p.amount || 0) > 0 ? (interest / p.amount) * 100 : 0;
+    return { interest, months, monthlyInt, years: months/12, maturityAmount, pct, isLoan: true };
+  }
   const days  = Math.max(0, Math.floor((end - start) / (1000*60*60*24)));
   const years = days / 365;
   const interest = (p.amount || 0) * (p.interestPct / 100) * years;
@@ -5488,11 +5511,14 @@ function renderParked() {
             const matV = parkedMaturityValue(p);
             const isMatured = loanP.closed;
             const showMatV  = !!matV;
-            // Meta: rate + status only (one line)
+            // Meta: rate (+ monthly for loans) + status (one line)
             const statusBit = isMatured ? `Matured ${fmtDate(p.closeDate)}`
                             : showMatV  ? `Matures ${fmtDate(p.closeDate)}`
                                         : `Since ${fmtDate(p.date)}`;
-            meta = `💹 ${p.interestPct}% · ${statusBit}`;
+            const ratePart = loanP.isLoan
+              ? `💹 ${p.interestPct}%/yr · ₹${Math.round(loanP.monthlyInt).toLocaleString('en-IN')}/mo`
+              : `💹 ${p.interestPct}%`;
+            meta = `${ratePart} · ${statusBit}`;
             // Box: single headline amount + profit
             const headerLabel  = isMatured ? 'MATURED' : showMatV ? 'MATURES TO' : 'CURRENT';
             const headerAmount = showMatV ? matV.maturityAmount : loanP.currentValue;
