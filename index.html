@@ -841,18 +841,18 @@
 
     /* ── PARKED MONEY (Profile 3) PAGE ── */
     .parked-summary {
-      margin: 16px 16px 0;
-      padding: 22px 20px;
-      border-radius: 22px;
+      margin: 14px 16px 0;
+      padding: 14px 18px;
+      border-radius: 18px;
       background: linear-gradient(135deg, rgba(251,191,36,0.85), rgba(245,158,11,0.75));
       color: #fff;
-      box-shadow: 0 12px 36px rgba(245,158,11,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+      box-shadow: 0 8px 24px rgba(245,158,11,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
       position: relative; overflow: hidden;
     }
-    .parked-summary::before { content:''; position:absolute; width:180px; height:180px; border-radius:50%; background:rgba(255,255,255,0.08); top:-50px; right:-40px; }
-    .parked-summary-label { font-size: 12px; opacity: .85; font-weight: 600; letter-spacing: .3px; margin-bottom: 4px; }
-    .parked-summary-amount { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
-    .parked-summary-sub { font-size: 12px; opacity: .85; margin-top: 4px; }
+    .parked-summary::before { content:''; position:absolute; width:120px; height:120px; border-radius:50%; background:rgba(255,255,255,0.08); top:-30px; right:-20px; }
+    .parked-summary-label { font-size: 11px; opacity: .9; font-weight: 700; letter-spacing: .3px; }
+    .parked-summary-amount { font-size: 26px; font-weight: 800; letter-spacing: -.5px; line-height: 1.15; }
+    .parked-summary-sub { font-size: 12px; opacity: .9; font-weight: 700; margin-top: 2px; }
     .parked-type-section { margin: 18px 16px 0; }
     .parked-type-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 0 2px; }
     .parked-type-emoji { font-size: 18px; }
@@ -5464,14 +5464,26 @@ function isLoanClosed(p) {
   return new Date(p.closeDate) <= new Date();
 }
 
+// Per-entry realized/accrued profit (for totals)
+function parkedEntryProfit(p) {
+  if (p.type === 'gold' && p.grams && _goldRateCache) {
+    return (parkedGoldCurrent(p) || (p.amount||0)) - (p.amount || 0);
+  }
+  const lp = parkedInterestProfit(p);
+  return lp ? lp.interest : 0;
+}
+
 function renderParked() {
   // Owner label
   const ownerLabel = document.getElementById('parkedOwnerLabel');
   if (ownerLabel) ownerLabel.textContent = `🏦 ${state.profile3Name || 'Other Person'} · Total Parked`;
   const total = (state.parkedMoney || []).reduce((s,p) => s + (p.amount || 0), 0);
+  const totalProfit = (state.parkedMoney || []).reduce((s,p) => s + parkedEntryProfit(p), 0);
+  const profitPct = total > 0 ? Math.round((totalProfit / total) * 100) : 0;
   document.getElementById('parkedTotal').textContent = fmt(total);
-  document.getElementById('parkedCount').textContent =
-    `${(state.parkedMoney || []).length} ${(state.parkedMoney||[]).length === 1 ? 'entry' : 'entries'}`;
+  const profitSign = totalProfit >= 0 ? '+' : '-';
+  document.getElementById('parkedCount').innerHTML =
+    `Profit ${profitSign}${fmt(Math.abs(totalProfit))} (${profitSign}${Math.abs(profitPct)}%)`;
 
   // Gold portfolio summary (invested vs current vs P/L)
   const goldItems = (state.parkedMoney || []).filter(p => p.type==='gold' && p.grams);
@@ -5568,7 +5580,6 @@ function renderParked() {
         return `<div class="parked-type-section">
           <div class="parked-type-header" style="flex-wrap:wrap;gap:8px;">
             <span class="parked-type-emoji">${t.emoji}</span>
-            <span class="parked-type-title">${t.name}</span>
             ${loanFilterPills}
           </div>
           <div class="parked-empty" style="padding:18px 16px;">No ${_parkedLoanFilter} loans.</div>
@@ -5577,6 +5588,17 @@ function renderParked() {
       return '';
     }
     const subtotal = items.reduce((s,i) => s + (i.amount||0), 0);
+    // Per-section profit (sum across filtered items)
+    const sectionProfit = items.reduce((s,i) => s + parkedEntryProfit(i), 0);
+    const sProfitClr = sectionProfit >= 0 ? '#10b981' : 'var(--expense)';
+    const sProfitSign = sectionProfit >= 0 ? '+' : '-';
+    const profitChip = (sectionProfit !== 0)
+      ? `<span style="font-size:11px;font-weight:800;color:${sProfitClr};background:${sectionProfit>=0?'rgba(16,185,129,0.12)':'rgba(239,68,68,0.12)'};padding:2px 8px;border-radius:99px;">${sProfitSign}${fmt(Math.abs(sectionProfit))}</span>`
+      : '';
+    // For loan section: title is replaced by pill filters; for others: keep title
+    const headerTitle = (t.id === 'loan')
+      ? '' // pills serve as heading
+      : `<span class="parked-type-title">${t.name}</span>`;
     // For Gold section, inject the live rate / invested-current-P&L panel
     const goldPanel = t.id === 'gold' ? goldSummary : '';
     return `
@@ -5584,9 +5606,12 @@ function renderParked() {
       <div class="parked-type-section">
         <div class="parked-type-header" style="flex-wrap:wrap;gap:6px;">
           <span class="parked-type-emoji">${t.emoji}</span>
-          <span class="parked-type-title">${t.name}</span>
+          ${headerTitle}
           ${loanFilterPills}
-          <span class="parked-type-total" style="margin-left:auto;">${fmt(subtotal)}</span>
+          <span style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            ${profitChip}
+            <span class="parked-type-total">${fmt(subtotal)}</span>
+          </span>
         </div>
         ${items.map(p => {
           const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' }) : '';
