@@ -5446,10 +5446,19 @@ function parkedMaturityValue(p) {
   return { interest, years, maturityAmount, pct };
 }
 
-let _parkedActiveTab = 'all';
-function setParkedTab(id) { _parkedActiveTab = id; renderParked(); }
-let _parkedLoanFilter = 'all'; // 'all' | 'open' | 'closed'
-function setParkedLoanFilter(f) { _parkedLoanFilter = f; renderParked(); }
+// Restore previous tab + loan-filter state from localStorage so refresh keeps the same view
+let _parkedActiveTab = (function(){ try { return localStorage.getItem('parkedActiveTab') || 'all'; } catch(_) { return 'all'; } })();
+function setParkedTab(id) {
+  _parkedActiveTab = id;
+  try { localStorage.setItem('parkedActiveTab', id); } catch(_) {}
+  renderParked();
+}
+let _parkedLoanFilter = (function(){ try { return localStorage.getItem('parkedLoanFilter') || 'all'; } catch(_) { return 'all'; } })();
+function setParkedLoanFilter(f) {
+  _parkedLoanFilter = f;
+  try { localStorage.setItem('parkedLoanFilter', f); } catch(_) {}
+  renderParked();
+}
 function isLoanClosed(p) {
   if (!p.closeDate) return false;
   return new Date(p.closeDate) <= new Date();
