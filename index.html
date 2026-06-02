@@ -5446,6 +5446,9 @@ function parkedMaturityValue(p) {
   return { interest, years, maturityAmount, pct };
 }
 
+let _parkedActiveTab = 'all';
+function setParkedTab(id) { _parkedActiveTab = id; renderParked(); }
+
 function renderParked() {
   // Owner label
   const ownerLabel = document.getElementById('parkedOwnerLabel');
@@ -5502,14 +5505,35 @@ function renderParked() {
       </div>`;
   }
 
-  // Group by type
+  // Build tabs: All + one per type with entries
+  const typesWithItems = PARKED_TYPES.filter(t => (state.parkedMoney||[]).some(p => p.type === t.id));
+  const visibleTabs = [{ id:'all', emoji:'📋', name:'All' }, ...typesWithItems];
+  // If active tab is no longer visible, reset to all
+  if (_parkedActiveTab !== 'all' && !typesWithItems.find(t => t.id === _parkedActiveTab)) {
+    _parkedActiveTab = 'all';
+  }
+  const tabsHtml = (state.parkedMoney||[]).length ? `
+    <div style="display:flex;gap:6px;overflow-x:auto;padding:14px 16px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;">
+      ${visibleTabs.map(t => `
+        <button onclick="setParkedTab('${t.id}')" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:99px;border:1px solid ${_parkedActiveTab===t.id?'rgba(99,102,241,0.55)':'var(--input-border)'};background:${_parkedActiveTab===t.id?'rgba(99,102,241,0.16)':'var(--input-bg)'};color:${_parkedActiveTab===t.id?'var(--primary)':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          ${t.emoji} ${t.name}
+        </button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  // Group by type (filter by active tab)
   const sections = PARKED_TYPES.map(t => {
+    if (_parkedActiveTab !== 'all' && _parkedActiveTab !== t.id) return '';
     const items = (state.parkedMoney || [])
       .filter(p => p.type === t.id)
       .sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)); // latest first
     if (!items.length) return '';
     const subtotal = items.reduce((s,i) => s + (i.amount||0), 0);
+    // For Gold section, inject the live rate / invested-current-P&L panel
+    const goldPanel = t.id === 'gold' ? goldSummary : '';
     return `
+      ${goldPanel}
       <div class="parked-type-section">
         <div class="parked-type-header">
           <span class="parked-type-emoji">${t.emoji}</span>
@@ -5599,9 +5623,9 @@ function renderParked() {
   }
 
   if (sections) {
-    sectionsEl.innerHTML = goldSummary + sections;
+    sectionsEl.innerHTML = tabsHtml + sections;
   } else {
-    sectionsEl.innerHTML = `<div class="parked-type-section">
+    sectionsEl.innerHTML = tabsHtml + `<div class="parked-type-section">
       <div class="parked-empty" style="padding:30px 16px;">No entries yet.<br>Tap <b>+</b> to add where you parked the money.</div>
       <div style="text-align:center;margin-top:8px;">
         <button onclick="recoverParked()" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);color:var(--primary);font-size:12px;font-weight:700;padding:8px 16px;border-radius:99px;cursor:pointer;">🔍 Recover lost entries</button>
