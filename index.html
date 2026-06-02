@@ -5448,6 +5448,12 @@ function parkedMaturityValue(p) {
 
 let _parkedActiveTab = 'all';
 function setParkedTab(id) { _parkedActiveTab = id; renderParked(); }
+let _parkedLoanFilter = 'all'; // 'all' | 'open' | 'closed'
+function setParkedLoanFilter(f) { _parkedLoanFilter = f; renderParked(); }
+function isLoanClosed(p) {
+  if (!p.closeDate) return false;
+  return new Date(p.closeDate) <= new Date();
+}
 
 function renderParked() {
   // Owner label
@@ -5525,20 +5531,53 @@ function renderParked() {
   // Group by type (filter by active tab)
   const sections = PARKED_TYPES.map(t => {
     if (_parkedActiveTab !== 'all' && _parkedActiveTab !== t.id) return '';
-    const items = (state.parkedMoney || [])
+    let items = (state.parkedMoney || [])
       .filter(p => p.type === t.id)
       .sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)); // latest first
     if (!items.length) return '';
+
+    // Loan-only filter: open / closed
+    let loanFilterPills = '';
+    if (t.id === 'loan') {
+      const openItems   = items.filter(p => !isLoanClosed(p));
+      const closedItems = items.filter(p =>  isLoanClosed(p));
+      const pill = (id, label, count) => `
+        <button onclick="setParkedLoanFilter('${id}');event.stopPropagation();" style="padding:3px 10px;border-radius:99px;border:1px solid ${_parkedLoanFilter===id?'rgba(99,102,241,0.55)':'var(--input-border)'};background:${_parkedLoanFilter===id?'rgba(99,102,241,0.16)':'var(--input-bg)'};color:${_parkedLoanFilter===id?'var(--primary)':'var(--muted)'};font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">${label}${count!=null?` <span style="opacity:.8;">${count}</span>`:''}</button>
+      `;
+      loanFilterPills = `<div style="display:flex;gap:5px;margin-left:8px;">
+        ${pill('all','All',items.length)}
+        ${pill('open','Open',openItems.length)}
+        ${pill('closed','Closed',closedItems.length)}
+      </div>`;
+      if (_parkedLoanFilter === 'open')   items = openItems;
+      if (_parkedLoanFilter === 'closed') items = closedItems;
+    }
+
+    if (!items.length) {
+      // Show header with filters even if filter produced empty
+      if (t.id === 'loan') {
+        return `<div class="parked-type-section">
+          <div class="parked-type-header" style="flex-wrap:wrap;gap:8px;">
+            <span class="parked-type-emoji">${t.emoji}</span>
+            <span class="parked-type-title">${t.name}</span>
+            ${loanFilterPills}
+          </div>
+          <div class="parked-empty" style="padding:18px 16px;">No ${_parkedLoanFilter} loans.</div>
+        </div>`;
+      }
+      return '';
+    }
     const subtotal = items.reduce((s,i) => s + (i.amount||0), 0);
     // For Gold section, inject the live rate / invested-current-P&L panel
     const goldPanel = t.id === 'gold' ? goldSummary : '';
     return `
       ${goldPanel}
       <div class="parked-type-section">
-        <div class="parked-type-header">
+        <div class="parked-type-header" style="flex-wrap:wrap;gap:6px;">
           <span class="parked-type-emoji">${t.emoji}</span>
           <span class="parked-type-title">${t.name}</span>
-          <span class="parked-type-total">${fmt(subtotal)}</span>
+          ${loanFilterPills}
+          <span class="parked-type-total" style="margin-left:auto;">${fmt(subtotal)}</span>
         </div>
         ${items.map(p => {
           const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' }) : '';
