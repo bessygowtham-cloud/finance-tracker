@@ -894,7 +894,21 @@
     .profile-switch-name { flex:1; font-size:14px; font-weight:700; color:var(--text); }
     .profile-switch-name small { display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:1px; }
 
-    /* ── INVESTMENT PAGE ── */
+    /* ── INVESTMENT PAGE (compact summary, mirrors Jayanthi style) ── */
+    .inv-summary-card {
+      margin: 14px 16px 0;
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.85), rgba(79,70,229,0.75));
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(99,102,241,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+      position: relative; overflow: hidden;
+    }
+    .inv-summary-card::before { content:''; position:absolute; width:120px; height:120px; border-radius:50%; background:rgba(255,255,255,0.08); top:-30px; right:-20px; }
+    .inv-summary-card .label { font-size: 11px; opacity: .9; font-weight: 700; letter-spacing: .3px; }
+    .inv-summary-card .amount { font-size: 26px; font-weight: 800; letter-spacing: -.5px; line-height: 1.15; }
+    .inv-summary-card .sub { font-size: 12px; opacity: .95; font-weight: 700; margin-top: 2px; }
+
     .inv-summary-bar {
       display: grid; grid-template-columns: 1fr 1fr;
       gap: 10px; margin: 16px 16px 0;
@@ -1905,42 +1919,29 @@
     </div>
   </div>
 
-  <div class="inv-summary-bar">
-    <div class="inv-stat-card">
-      <div class="inv-stat-label">Invested</div>
-      <div class="inv-stat-val" id="invTotalInvested">₹0</div>
-    </div>
-    <div class="inv-stat-card">
-      <div class="inv-stat-label">Current Value</div>
-      <div class="inv-stat-val" id="invTotalCurrent">₹0</div>
-    </div>
-    <div class="inv-stat-card">
-      <div class="inv-stat-label">Total P&L</div>
-      <div class="inv-stat-val" id="invTotalPL">₹0</div>
-      <div class="inv-stat-sub" id="invTotalPLPct">0%</div>
-    </div>
-    <div class="inv-stat-card">
-      <div class="inv-stat-label">Holdings</div>
-      <div class="inv-stat-val" id="invCount">0</div>
-      <div class="inv-stat-sub" style="color:var(--muted);">across types</div>
-    </div>
+  <!-- Compact summary card -->
+  <div class="inv-summary-card">
+    <div class="label">📊 Portfolio · Current Value</div>
+    <div class="amount" id="invTotalCurrent">₹0</div>
+    <div class="sub" id="invTotalPL">+₹0 (+0%)</div>
   </div>
 
+  <!-- Hidden – kept for compatibility with existing code paths that update them -->
+  <span id="invTotalInvested" style="display:none;"></span>
+  <span id="invTotalPLPct" style="display:none;"></span>
+  <span id="invCount" style="display:none;"></span>
+
+  <!-- Tabs + grouped sections rendered by JS -->
+  <div id="invSectionsContainer"></div>
+
+  <!-- Hidden – chart card kept (used internally by Chart.js) but not shown in flat layout -->
   <div class="inv-chart-card" id="invChartCard" style="display:none;">
     <div class="card-title">Portfolio Allocation</div>
-    <div class="inv-chart-wrap">
-      <canvas id="invChart"></canvas>
-    </div>
+    <div class="inv-chart-wrap"><canvas id="invChart"></canvas></div>
     <div class="inv-legend" id="invLegend"></div>
   </div>
-
-  <div class="inv-list-section">
-    <div class="inv-list-header">
-      <div class="inv-list-title">Holdings</div>
-      <button class="add-btn-small" onclick="openInvestmentModal()">+ Add</button>
-    </div>
-    <div id="invList"></div>
-  </div>
+  <!-- Hidden – old flat list, kept for backward compat with any external references -->
+  <div id="invList" style="display:none;"></div>
 
   <button class="inv-fab" onclick="openInvestmentModal()">+</button>
 </div>
@@ -4957,70 +4958,150 @@ function liveGoldValue(inv) {
   return inv.grams * rate;
 }
 
+// Persistent active-tab state for Investments
+let _invActiveTab = (function(){ try { return localStorage.getItem('invActiveTab') || 'all'; } catch(_) { return 'all'; } })();
+function setInvTab(id) { _invActiveTab = id; try { localStorage.setItem('invActiveTab', id); } catch(_) {} renderInvestments(); }
+
 function renderInvestments() {
-  // Apply live values to gold items in-place for stats (don't mutate stored data)
-  const liveInvestments = investments.map(i => {
-    if (i.type === 'gold' && i.grams && _goldRateCache) {
-      return { ...i, currentValue: liveGoldValue(i) };
-    }
-    return i;
-  });
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' }) : '';
+
+  // Apply live gold values
+  const liveInvestments = investments.map(i =>
+    (i.type === 'gold' && i.grams && _goldRateCache)
+      ? { ...i, currentValue: liveGoldValue(i) }
+      : i
+  );
+
+  // Totals
   const totalInvested = liveInvestments.reduce((s,i) => s + (i.invested||0), 0);
   const totalCurrent  = liveInvestments.reduce((s,i) => s + (i.currentValue||0), 0);
   const totalPL = totalCurrent - totalInvested;
-  const plPct = totalInvested > 0 ? (totalPL / totalInvested) * 100 : 0;
+  const plPct = totalInvested > 0 ? Math.round((totalPL / totalInvested) * 100) : 0;
 
-  document.getElementById('invTotalInvested').textContent = fmt(totalInvested);
+  // Update compact summary card
   document.getElementById('invTotalCurrent').textContent = fmt(totalCurrent);
+  const plSign = totalPL >= 0 ? '+' : '-';
   const plEl = document.getElementById('invTotalPL');
-  plEl.textContent = (totalPL>=0?'+':'-') + fmt(totalPL);
-  plEl.className = 'inv-stat-val ' + (totalPL>=0?'profit':'loss');
-  const plPctEl = document.getElementById('invTotalPLPct');
-  plPctEl.textContent = (totalPL>=0?'+':'') + plPct.toFixed(2) + '%';
-  plPctEl.className = 'inv-stat-sub ' + (totalPL>=0?'profit':'loss');
+  plEl.innerHTML = `${plSign}${fmt(Math.abs(totalPL))} (${plSign}${Math.abs(plPct)}%) · Invested ${fmt(totalInvested)}`;
+  // Hidden legacy fields
+  document.getElementById('invTotalInvested').textContent = fmt(totalInvested);
+  document.getElementById('invTotalPLPct').textContent = plSign + Math.abs(plPct) + '%';
   document.getElementById('invCount').textContent = investments.length;
 
-  // List
-  const listEl = document.getElementById('invList');
-  if (!liveInvestments.length) {
-    listEl.innerHTML = '<div class="empty-inner" style="padding:30px 16px;text-align:center;color:var(--muted);">No investments yet.<br>Tap <b>+ Add</b> to start tracking your portfolio.</div>';
-  } else {
-    listEl.innerHTML = liveInvestments.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).map(inv => {
-      const t = INV_TYPES.find(x => x.id === inv.type) || INV_TYPES[INV_TYPES.length-1];
-      const pl = (inv.currentValue||0) - (inv.invested||0);
-      const pct = inv.invested>0 ? (pl/inv.invested)*100 : 0;
-      const cls = pl>=0?'profit':'loss';
-      const sign = pl>=0?'+':'-';
-      let subline = `${t.name}${inv.date?' · '+inv.date:''}`;
-      if (inv.type === 'gold' && inv.grams) {
-        const purityLabel = inv.purity === '24' ? '24K' : '22K';
-        subline = `🥇 ${inv.grams}g ${purityLabel}${inv.date?' · '+inv.date:''}`;
-      }
-      const liveTag = (inv.type === 'gold' && inv.grams && _goldRateCache)
-        ? `<span style="font-size:9px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.12);padding:1px 6px;border-radius:99px;margin-left:4px;">LIVE</span>` : '';
-      return `<div class="inv-item">
-        <div class="inv-item-icon" style="background:${t.color}22;border-color:${t.color}55;">${t.emoji}</div>
-        <div class="inv-item-info">
-          <div class="inv-item-name">${inv.name} ${liveTag}</div>
-          <div class="inv-item-type">${subline}</div>
+  // Build tabs
+  const typesWithItems = INV_TYPES.filter(t => liveInvestments.some(i => i.type === t.id));
+  const visibleTabs = [{ id:'all', emoji:'📋', name:'All' }, ...typesWithItems];
+  if (_invActiveTab !== 'all' && !typesWithItems.find(t => t.id === _invActiveTab)) {
+    _invActiveTab = 'all';
+  }
+  const tabsHtml = liveInvestments.length ? `
+    <div style="display:flex;gap:6px;overflow-x:auto;padding:14px 16px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;">
+      ${visibleTabs.map(t => `
+        <button onclick="setInvTab('${t.id}')" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:99px;border:1px solid ${_invActiveTab===t.id?'rgba(99,102,241,0.55)':'var(--input-border)'};background:${_invActiveTab===t.id?'rgba(99,102,241,0.16)':'var(--input-bg)'};color:${_invActiveTab===t.id?'var(--primary)':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          ${t.emoji} ${t.name}
+        </button>
+      `).join('')}
+    </div>
+  ` : '';
+
+  // Build gold summary panel (only shown inside Gold section)
+  let goldPanel = '';
+  if (_goldRateCache && liveInvestments.some(i => i.type==='gold' && i.grams)) {
+    const goldItems = liveInvestments.filter(i => i.type==='gold' && i.grams);
+    const gInv = goldItems.reduce((s,i) => s + (i.invested||0), 0);
+    const gCur = goldItems.reduce((s,i) => s + (i.currentValue||0), 0);
+    const gPL = gCur - gInv;
+    const gPct = gInv > 0 ? Math.round((gPL/gInv)*100) : 0;
+    const ago = Math.round((Date.now() - _goldRateCache.ts) / 60000);
+    const when = ago < 1 ? 'just now' : (ago < 60 ? ago + 'm ago' : Math.round(ago/60) + 'h ago');
+    goldPanel = `
+      <div style="margin:14px 16px 0;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(245,158,11,0.14),rgba(251,191,36,0.10));border:1px solid rgba(245,158,11,0.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:12px;font-weight:700;color:#92400e;">🥇 Live Chennai Gold</span>
+          <button onclick="refreshGoldRate(true)" style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);border-radius:99px;padding:3px 10px;font-size:10px;font-weight:700;color:#92400e;cursor:pointer;">↻ ${when}</button>
         </div>
-        <div class="inv-item-right">
-          <div class="inv-item-val">${fmt(inv.currentValue||0)}</div>
-          <div class="inv-item-pl ${cls}">${sign}${fmt(Math.abs(pl))} (${pl>=0?'+':''}${pct.toFixed(1)}%)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div style="background:rgba(255,255,255,0.5);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:8px 10px;text-align:center;">
+            <div style="font-size:10px;color:#92400e;font-weight:700;">22K / gram</div>
+            <div style="font-size:16px;font-weight:800;color:var(--text);">₹${_goldRateCache.r22.toLocaleString('en-IN')}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.5);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:8px 10px;text-align:center;">
+            <div style="font-size:10px;color:#92400e;font-weight:700;">24K / gram</div>
+            <div style="font-size:16px;font-weight:800;color:var(--text);">₹${_goldRateCache.r24.toLocaleString('en-IN')}</div>
+          </div>
         </div>
-        <div class="inv-actions">
-          <button class="edit-btn" onclick="openInvestmentModal('${inv.id}')">✏️</button>
-          <button class="delete-btn" onclick="deleteInvestment('${inv.id}')">×</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+          <div><div style="font-size:10px;color:var(--muted);font-weight:700;">INVESTED</div><div style="font-size:14px;font-weight:800;">${fmt(gInv)}</div></div>
+          <div><div style="font-size:10px;color:var(--muted);font-weight:700;">CURRENT</div><div style="font-size:14px;font-weight:800;">${fmt(gCur)}</div></div>
+          <div><div style="font-size:10px;color:var(--muted);font-weight:700;">P/L</div><div style="font-size:14px;font-weight:800;color:${gPL>=0?'#10b981':'var(--expense)'};">${gPL>=0?'+':'-'}${fmt(Math.abs(gPL))}<br><span style="font-size:10px;">${gPL>=0?'+':''}${gPct}%</span></div></div>
         </div>
       </div>`;
-    }).join('');
   }
 
-  renderInvChart();
-  renderGoldBanner();
-  // Auto-fetch rate once on first render if no cache yet
-  if (!_goldRateCache && investments.some(i => i.type === 'gold')) {
-    refreshGoldRate(false);
+  // Group by type
+  const sections = INV_TYPES.map(t => {
+    if (_invActiveTab !== 'all' && _invActiveTab !== t.id) return '';
+    const items = liveInvestments
+      .filter(i => i.type === t.id)
+      .sort((a,b) => new Date(b.date||0) - new Date(a.date||0));
+    if (!items.length) return '';
+    const subInvested = items.reduce((s,i) => s + (i.invested||0), 0);
+    const subCurrent  = items.reduce((s,i) => s + (i.currentValue||0), 0);
+    const sectionProfit = subCurrent - subInvested;
+    const sClr = sectionProfit >= 0 ? '#10b981' : 'var(--expense)';
+    const sSign = sectionProfit >= 0 ? '+' : '-';
+    const profitChip = sectionProfit !== 0
+      ? `<span style="font-size:11px;font-weight:800;color:${sClr};background:${sectionProfit>=0?'rgba(16,185,129,0.12)':'rgba(239,68,68,0.12)'};padding:2px 8px;border-radius:99px;">${sSign}${fmt(Math.abs(sectionProfit))}</span>`
+      : '';
+
+    // Inject gold panel inside Gold section
+    const panelHere = (t.id === 'gold') ? goldPanel : '';
+
+    return `
+      ${panelHere}
+      <div class="parked-type-section">
+        <div class="parked-type-header" style="flex-wrap:wrap;gap:6px;">
+          <span class="parked-type-emoji">${t.emoji}</span>
+          <span class="parked-type-title">${t.name}</span>
+          <span style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            ${profitChip}
+            <span class="parked-type-total">${fmt(subCurrent)}</span>
+          </span>
+        </div>
+        ${items.map(inv => {
+          const pl = (inv.currentValue||0) - (inv.invested||0);
+          const pct = inv.invested > 0 ? Math.round((pl/inv.invested)*100) : 0;
+          const sign = pl >= 0 ? '+' : '-';
+          const cls = pl >= 0 ? 'profit' : 'loss';
+          let meta = `${fmtDate(inv.date)}`;
+          if (inv.type === 'gold' && inv.grams) {
+            meta = `🥇 ${inv.grams}g ${inv.purity==='24'?'24K':'22K'} · ${fmtDate(inv.date)}`;
+          }
+          return `<div class="parked-item" onclick="openInvestmentModal('${inv.id}')" style="cursor:pointer;">
+            <div class="parked-item-info">
+              <div class="parked-item-name">${escapeHtml(inv.name)}</div>
+              <div class="parked-item-meta">${meta}</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="parked-item-amt">${fmt(inv.currentValue||0)}</div>
+              <div class="inv-item-pl ${cls}" style="font-size:11px;font-weight:700;">${sign}${fmt(Math.abs(pl))} (${pl>=0?'+':''}${pct}%)</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+  }).filter(Boolean).join('');
+
+  const container = document.getElementById('invSectionsContainer');
+  if (!liveInvestments.length) {
+    container.innerHTML = `<div style="text-align:center;color:var(--muted);padding:40px 16px;">No investments yet.<br>Tap <b>+</b> to add your first holding.</div>`;
+  } else {
+    container.innerHTML = tabsHtml + sections;
+  }
+
+  // Auto-fetch gold rate if any gold items but no cache
+  if (!_goldRateCache && liveInvestments.some(i => i.type === 'gold')) {
+    refreshGoldRate(false).then(() => { if (_goldRateCache) renderInvestments(); });
   }
 }
 
