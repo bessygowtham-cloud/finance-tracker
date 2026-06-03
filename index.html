@@ -2132,8 +2132,32 @@
       <input type="text" class="form-input" id="parkedNotes" placeholder="interest rate, return date, terms..." />
     </div>
 
-    <button class="btn-primary" onclick="saveParked()">Save</button>
-    <button class="btn-secondary" style="margin-top:8px;display:none;" id="parkedDeleteBtn" onclick="deleteCurrentParked()">Delete</button>
+    <!-- Receipt / FD document upload (optional, any type) -->
+    <div class="form-group">
+      <label class="form-label" id="parkedReceiptLabel">Receipt / Document (optional)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label for="parkedReceiptFile" style="flex:1;padding:10px 14px;background:rgba(99,102,241,0.08);border:1.5px dashed rgba(99,102,241,0.4);border-radius:12px;color:var(--primary);font-size:13px;font-weight:700;cursor:pointer;text-align:center;">
+          📎 <span id="parkedReceiptText">Upload receipt</span>
+        </label>
+        <input type="file" id="parkedReceiptFile" accept="image/*,.pdf" style="display:none;" onchange="onParkedReceiptChange(event)" />
+        <button type="button" id="parkedReceiptView" onclick="viewParkedReceipt()" style="display:none;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#059669;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;">View</button>
+        <button type="button" id="parkedReceiptClear" onclick="clearParkedReceipt()" style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--expense);border-radius:10px;padding:8px 10px;font-size:14px;cursor:pointer;">×</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:stretch;">
+      <button id="parkedDeleteBtn" style="display:none;background:rgba(239,68,68,0.1);border:1.5px solid rgba(239,68,68,0.35);color:var(--expense);padding:13px 20px;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;" onclick="deleteCurrentParked()">Delete</button>
+      <button class="btn-primary" style="flex:1;margin-top:0;" onclick="saveParked()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt viewer modal -->
+<div class="modal-overlay" id="receiptViewerModal" onclick="closeReceiptViewer(event)">
+  <div class="modal-sheet" style="max-height:90vh;">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Receipt</div>
+    <div id="receiptViewerContent" style="text-align:center;"></div>
   </div>
 </div>
 
@@ -5419,6 +5443,71 @@ let _parkedSelectedType = 'fd';
 
 let _parkedPurity = '22';
 let _parkedGoldFetchTried = false;
+let _parkedReceiptData = null;
+let _parkedReceiptType = null;
+let _parkedReceiptName = null;
+
+function updateParkedReceiptUI() {
+  const txt    = document.getElementById('parkedReceiptText');
+  const viewBt = document.getElementById('parkedReceiptView');
+  const clrBt  = document.getElementById('parkedReceiptClear');
+  if (!txt) return;
+  if (_parkedReceiptData) {
+    txt.textContent = _parkedReceiptName || 'Receipt attached';
+    if (viewBt) viewBt.style.display = '';
+    if (clrBt)  clrBt.style.display  = '';
+  } else {
+    txt.textContent = 'Upload receipt';
+    if (viewBt) viewBt.style.display = 'none';
+    if (clrBt)  clrBt.style.display  = 'none';
+  }
+}
+
+function onParkedReceiptChange(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  // Soft size limit so we don't blow up Firestore (1MB doc limit)
+  if (file.size > 900 * 1024) {
+    if (!confirm(`This file is ${(file.size/1024).toFixed(0)} KB. Files over ~900 KB may fail to sync to cloud. Continue?`)) {
+      e.target.value = '';
+      return;
+    }
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    _parkedReceiptData = reader.result; // data URL
+    _parkedReceiptType = file.type.startsWith('image/') ? 'image' : 'pdf';
+    _parkedReceiptName = file.name;
+    updateParkedReceiptUI();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = ''; // allow re-selecting the same file later
+}
+
+function clearParkedReceipt() {
+  if (!confirm('Remove this receipt?')) return;
+  _parkedReceiptData = null;
+  _parkedReceiptType = null;
+  _parkedReceiptName = null;
+  updateParkedReceiptUI();
+}
+
+function viewParkedReceipt() {
+  if (!_parkedReceiptData) return;
+  const content = document.getElementById('receiptViewerContent');
+  if (_parkedReceiptType === 'image') {
+    content.innerHTML = `<img src="${_parkedReceiptData}" style="max-width:100%;max-height:65vh;border-radius:12px;" />
+      <div style="margin-top:12px;"><a href="${_parkedReceiptData}" download="${_parkedReceiptName||'receipt.jpg'}" style="color:var(--primary);font-weight:700;">⬇️ Download</a></div>`;
+  } else {
+    content.innerHTML = `<embed src="${_parkedReceiptData}" type="application/pdf" width="100%" height="500px" style="border-radius:12px;border:1px solid var(--border);" />
+      <div style="margin-top:12px;"><a href="${_parkedReceiptData}" download="${_parkedReceiptName||'receipt.pdf'}" style="color:var(--primary);font-weight:700;">⬇️ Download</a></div>`;
+  }
+  document.getElementById('receiptViewerModal').classList.add('open');
+}
+function closeReceiptViewer(e) {
+  if (!e || e.target === document.getElementById('receiptViewerModal'))
+    document.getElementById('receiptViewerModal').classList.remove('open');
+}
 function renderParkedTypeGrid() {
   document.getElementById('parkedTypeGrid').innerHTML = PARKED_TYPES.map(t =>
     `<button class="cat-btn ${_parkedSelectedType===t.id?'selected':''}" onclick="selectParkedType('${t.id}')">
@@ -5483,6 +5572,11 @@ function openParkedModal(id) {
   document.getElementById('parkedInterestPct').value = (p && p.interestPct) ? p.interestPct : '';
   document.getElementById('parkedInterestUpfront').value = (p && p.interestUpfront) ? p.interestUpfront : '';
   document.getElementById('parkedCloseDate').value   = (p && p.closeDate) ? p.closeDate : '';
+  // Receipt state
+  _parkedReceiptData = (p && p.receipt) ? p.receipt : null;
+  _parkedReceiptType = (p && p.receiptType) ? p.receiptType : null;
+  _parkedReceiptName = (p && p.receiptName) ? p.receiptName : null;
+  updateParkedReceiptUI();
   renderParkedTypeGrid();
   document.getElementById('parkedModal').classList.add('open');
 }
@@ -5507,7 +5601,13 @@ function saveParked() {
   const closeDate   = hasInterest ? document.getElementById('parkedCloseDate').value : '';
   const interestUpfront = (_parkedSelectedType === 'loan') ? (parseFloat(document.getElementById('parkedInterestUpfront').value) || 0) : 0;
 
-  const fields = { type: _parkedSelectedType, name, amount, date, notes, grams, purity, interestPct, closeDate, interestUpfront };
+  const fields = {
+    type: _parkedSelectedType, name, amount, date, notes,
+    grams, purity, interestPct, closeDate, interestUpfront,
+    receipt: _parkedReceiptData || '',
+    receiptType: _parkedReceiptType || '',
+    receiptName: _parkedReceiptName || '',
+  };
   if (_parkedEditingId) {
     const p = state.parkedMoney.find(x => x.id === _parkedEditingId);
     if (p) Object.assign(p, fields);
@@ -5846,6 +5946,7 @@ function renderParked() {
           }
 
           if (p.notes) meta += (meta ? ' · ' : '') + escapeHtml(p.notes);
+          if (p.receipt) meta += (meta ? ' · ' : '') + '📎';
 
           return `
           <div class="parked-item" onclick="openParkedModal('${p.id}')" style="cursor:pointer;">
