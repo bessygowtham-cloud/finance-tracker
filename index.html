@@ -3662,8 +3662,9 @@ function renderRecurringList() {
           ${details.map(d => `<div>• ${d}</div>`).join('')}
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;">
-          <button onclick="markBillPaid('${r.id}');event.stopPropagation();" style="flex:1;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:var(--primary);font-size:12px;font-weight:700;padding:8px;border-radius:10px;cursor:pointer;">Apply Now</button>
-          <button onclick="deleteRecurring('${r.id}');event.stopPropagation();" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--expense);font-size:12px;font-weight:700;padding:8px 14px;border-radius:10px;cursor:pointer;">Delete</button>
+          <button onclick="openRecurringModal('${r.id}');event.stopPropagation();" style="flex:1;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.3);color:var(--primary);font-size:12px;font-weight:700;padding:8px;border-radius:10px;cursor:pointer;">✏️ Edit</button>
+          <button onclick="markBillPaid('${r.id}');event.stopPropagation();" style="flex:1;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#059669;font-size:12px;font-weight:700;padding:8px;border-radius:10px;cursor:pointer;">Apply Now</button>
+          <button onclick="deleteRecurring('${r.id}');event.stopPropagation();" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--expense);font-size:12px;font-weight:700;padding:8px 12px;border-radius:10px;cursor:pointer;">🗑️</button>
         </div>
       </div>
     </div>`;
@@ -3684,14 +3685,32 @@ function toggleRecurringExpand(id) {
     }
   });
 }
-function openRecurringModal() {
-  state.recType='expense'; state.recSelectedCat=null;
-  state.recAccountId = state.accounts[0]?.id || 'wallet';
-  state.recSelectedBank = null;
-  state.recSelectedSubCat = null;
-  ['recName','recAmount','recDay'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('recTypeExpense').className='active expense';
-  document.getElementById('recTypeIncome').className='';
+let _editingRecurringId = null;
+function openRecurringModal(id) {
+  _editingRecurringId = id || null;
+  const r = id ? state.recurring.find(x => x.id === id) : null;
+  // Update title to reflect edit vs add
+  const titleEl = document.querySelector('#recurringModal .modal-title');
+  if (titleEl) titleEl.textContent = r ? 'Edit Recurring Transaction' : 'Add Recurring Transaction';
+
+  if (r) {
+    state.recType = r.type || 'expense';
+    state.recSelectedCat = r.category || null;
+    state.recAccountId = r.account || (state.accounts[0]?.id || 'wallet');
+    state.recSelectedBank = r.bank || null;
+    state.recSelectedSubCat = r.subCategory || null;
+    document.getElementById('recName').value   = r.name || '';
+    document.getElementById('recAmount').value = r.amount || '';
+    document.getElementById('recDay').value    = r.dayOfMonth || '';
+  } else {
+    state.recType='expense'; state.recSelectedCat=null;
+    state.recAccountId = state.accounts[0]?.id || 'wallet';
+    state.recSelectedBank = null;
+    state.recSelectedSubCat = null;
+    ['recName','recAmount','recDay'].forEach(id=>document.getElementById(id).value='');
+  }
+  document.getElementById('recTypeExpense').className = state.recType==='expense' ? 'active expense' : '';
+  document.getElementById('recTypeIncome').className  = state.recType==='income'  ? 'active income'  : '';
   renderRecCatGrid();
   renderRecAccountChips();
   applyRecAccountConditionals();
@@ -3829,7 +3848,14 @@ function saveRecurring() {
   if(!amount||amount<=0)return alert('Please enter a valid amount.');
   if(!state.recSelectedCat)return alert('Please select a category.');
   if(!day||day<1||day>31)return alert('Please enter a valid day (1–31).');
-  state.recurring.push({id:Date.now().toString(),name,type:state.recType,amount,category:state.recSelectedCat,subCategory:state.recSelectedSubCat||'',account,bank:state.recSelectedBank||'',dayOfMonth:day,active:true});
+  const payload = { name, type:state.recType, amount, category:state.recSelectedCat, subCategory:state.recSelectedSubCat||'', account, bank:state.recSelectedBank||'', dayOfMonth:day };
+  if (_editingRecurringId) {
+    const r = state.recurring.find(x => x.id === _editingRecurringId);
+    if (r) Object.assign(r, payload);
+  } else {
+    state.recurring.push({ id:Date.now().toString(), ...payload, active:true });
+  }
+  _editingRecurringId = null;
   save(); document.getElementById('recurringModal').classList.remove('open'); renderRecurringList();
 }
 function deleteRecurring(id) {
