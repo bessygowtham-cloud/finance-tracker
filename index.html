@@ -10,6 +10,10 @@
   <meta name="apple-mobile-web-app-title" content="Finance" />
   <link rel="manifest" href="manifest.json" />
   <title>Finance Tracker</title>
+  <!-- Modern friendly font: Inter (with tabular numbers for clean finance figures) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -47,9 +51,20 @@
       transition: background-color .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease), box-shadow .25s var(--ease), transform .2s var(--ease-out), opacity .2s var(--ease);
     }
     button:active, .cat-btn:active, .account-chip:active, .filter-chip:active, .profile-card:active, .nav-btn:active, .settings-row:active { transform: scale(0.97); }
+    /* Use tabular figures so digit columns line up beautifully in lists */
+    .parked-item-amt, .parked-type-total, .inv-item-val, .inv-item-pl,
+    .txn-amount, .balance-amount, .chip-val,
+    .inv-summary-card .amount, .inv-summary-card .sub,
+    .parked-summary-amount, .parked-summary-sub {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum' 1, 'cv11' 1;
+    }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: 'cv11', 'ss01', 'ss03'; /* Inter stylistic alternates for cleaner shapes */
       color: var(--text);
       min-height: 100vh;
       padding-bottom: 110px;
