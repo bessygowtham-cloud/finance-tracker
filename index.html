@@ -2635,7 +2635,7 @@ function startCloudSync(uid) {
 
     state.allocations   = mergeObj(d.allocations,  state.allocations, {});
     state.customCats    = mergeObj(d.customCats,   state.customCats, { expense: [], income: [] });
-    state.subCategories = mergeObj(d.subCategories,state.subCategories, { food:[], transport:[], health:[], bills:[] });
+    state.subCategories = mergeObj(d.subCategories,state.subCategories, { water:['Drinking','Metro'], food:[], transport:[], health:[], bills:[] });
     state.profile3Name  = d.profile3Name || state.profile3Name || 'Other Person';
 
     // If local had data the cloud was missing, push our merged copy back up so cloud catches up
@@ -2699,6 +2699,7 @@ function renderSyncCard() {
 // ══════════════════ CONSTANTS ══════════════════
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const EXPENSE_CATS = [
+  {id:'water',         emoji:'💧', name:'Water'},
   {id:'food',          emoji:'🍔', name:'Food'},
   {id:'transport',     emoji:'⛽', name:'Petrol'},
   {id:'shopping',      emoji:'🛍️', name:'Shopping'},
@@ -2737,7 +2738,7 @@ let state = {
   accounts: JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS)),
   customCats: { expense: [], income: [] },
   goals: [],
-  subCategories: { food:[], transport:[], health:[], bills:[] },
+  subCategories: { water:['Drinking','Metro'], food:[], transport:[], health:[], bills:[] },
   familyMembers: [],
   purchases: [],
   reminders: [],
@@ -2769,7 +2770,7 @@ function load() {
     state.accounts     = p.accounts     || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
     state.customCats     = p.customCats     || { expense: [], income: [] };
     state.goals          = p.goals          || [];
-    state.subCategories  = p.subCategories  || { food:[], transport:[], health:[], bills:[] };
+    state.subCategories  = p.subCategories  || { water:['Drinking','Metro'], food:[], transport:[], health:[], bills:[] };
     state.familyMembers  = p.familyMembers  || [];
     state.bankTags       = p.bankTags       || ['Standard Chartered', 'Axis Bank', 'HDFC'];
     state.creditCards    = p.creditCards    || ['HDFC', 'Axis', 'ICICI'];
@@ -2784,6 +2785,9 @@ function load() {
     state.profile3Name = 'Jayanthi';
     localStorage.setItem('p3RenamedJayanthi', '1');
   }
+  // Ensure Water sub-category bucket exists with default values for existing users
+  if (!state.subCategories) state.subCategories = {};
+  if (!state.subCategories.water) state.subCategories.water = ['Drinking','Metro'];
   if (Object.keys(state.allocations).length === 0)
     EXPENSE_CATS.forEach(c => { state.allocations[c.id] = 0; });
   if (state.darkMode) {
@@ -2853,7 +2857,7 @@ function applySnapshot(s) {
   state.accounts      = s.accounts      || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
   state.customCats    = s.customCats    || { expense: [], income: [] };
   state.goals         = s.goals         || [];
-  state.subCategories = s.subCategories || { food:[], transport:[], health:[], bills:[] };
+  state.subCategories = s.subCategories || { water:['Drinking','Metro'], food:[], transport:[], health:[], bills:[] };
   state.familyMembers = s.familyMembers || [];
   state.bankTags      = s.bankTags      || ['Standard Chartered', 'Axis Bank', 'HDFC'];
   state.creditCards   = s.creditCards   || ['HDFC', 'Axis', 'ICICI'];
@@ -3788,7 +3792,7 @@ function selectRecCat(id){
 function renderRecSubCatChips() {
   const wrap = document.getElementById('recSubCatField');
   if (!wrap) return;
-  const subCatCats = ['food','transport','health','bills'];
+  const subCatCats = ['water','food','transport','health','bills'];
   const cat = state.recSelectedCat;
   if (!subCatCats.includes(cat)) { wrap.classList.remove('visible'); return; }
   wrap.classList.add('visible');
@@ -3809,7 +3813,7 @@ function addRecCustomSubCat() {
   const name = prompt(`Add a sub-category for ${cat} (e.g., Internet bill, Electricity):`);
   if (!name || !name.trim()) return;
   const t = name.trim();
-  if (!state.subCategories) state.subCategories = { food:[], transport:[], health:[], bills:[] };
+  if (!state.subCategories) state.subCategories = { water:['Drinking','Metro'], food:[], transport:[], health:[], bills:[] };
   if (!state.subCategories[cat]) state.subCategories[cat] = [];
   if (!state.subCategories[cat].includes(t)) state.subCategories[cat].push(t);
   state.recSelectedSubCat = t;
@@ -4120,7 +4124,7 @@ function deleteGoal(id) {
 }
 
 // ══════════════════ SUB CATEGORIES ══════════════════
-const SUB_CAT_IDS = ['food','transport','health','bills'];
+const SUB_CAT_IDS = ['water','food','transport','health','bills'];
 const SUB_CAT_LABELS = { food:'🍔 Food', transport:'⛽ Petrol', health:'💊 Health', bills:'⚡ Bills' };
 let _subCatFor = 'food';
 
