@@ -765,23 +765,30 @@
       text-transform: uppercase; letter-spacing: .8px; padding: 0 0 8px 4px;
       display: flex; justify-content: space-between; align-items: center;
     }
-    /* Accordion behavior */
-    .settings-section-title.accordion-head {
-      cursor: pointer;
-      user-select: none;
-      padding: 12px 14px;
+    /* ── Accordion: title + content unify into ONE card ── */
+    .settings-section.has-accordion {
       background: var(--glass-light);
       backdrop-filter: blur(16px) saturate(180%);
       border: 1px solid var(--glass-border-light);
       box-shadow: var(--glass-shadow-light);
       border-radius: 14px;
-      margin-bottom: 0;
-      transition: border-radius .15s, margin-bottom .15s;
+      overflow: hidden;
+      padding: 0;
     }
-    body.dark .settings-section-title.accordion-head {
+    body.dark .settings-section.has-accordion {
       background: var(--glass-dark);
       border-color: var(--glass-border-dark);
       box-shadow: var(--glass-shadow-dark);
+    }
+    .settings-section-title.accordion-head {
+      cursor: pointer;
+      user-select: none;
+      padding: 14px 16px;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      margin: 0;
     }
     .settings-section-title.accordion-head::before {
       content: '▾';
@@ -793,8 +800,7 @@
       flex-shrink: 0;
     }
     .settings-section:not(.collapsed) .settings-section-title.accordion-head {
-      border-radius: 14px 14px 0 0;
-      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border);
     }
     .settings-section.collapsed .settings-section-title.accordion-head::before {
       transform: rotate(-90deg);
@@ -802,8 +808,18 @@
     .settings-section.collapsed > *:not(.settings-section-title) {
       display: none !important;
     }
-    .settings-section.collapsed .settings-section-title.accordion-head {
-      opacity: 0.92;
+    /* Inner content cards inside an accordion section: blend with parent (no own background) */
+    .settings-section.has-accordion > .settings-card,
+    .settings-section.has-accordion > .card {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      margin: 0;
+      padding: 4px 16px 14px;
+    }
+    .settings-section.has-accordion > button.btn-primary {
+      margin: 0 16px 14px;
     }
     .settings-section-title.accordion-head .add-btn-small {
       z-index: 2;
@@ -1715,33 +1731,6 @@
 <!-- ══════════ SETTINGS ══════════ -->
 <div class="page page-pad" id="page-settings">
 
-  <!-- ── PROFILES ── -->
-  <div class="settings-section" style="margin-bottom:6px;">
-    <div class="settings-section-title">Profiles</div>
-  </div>
-  <div class="profile-grid" style="grid-template-columns:1fr 1fr 1fr;gap:8px;">
-    <!-- Profile 1 -->
-    <div class="profile-card" onclick="switchProfile('personal')" id="profileCard_personal">
-      <div class="profile-emoji">💸</div>
-      <div class="profile-name" style="font-size:12px;">Personal</div>
-      <div class="profile-desc" style="font-size:10px;">Income & expenses</div>
-    </div>
-    <!-- Profile 2 -->
-    <div class="profile-card p2" onclick="switchProfile('investments')" id="profileCard_investments">
-      <div class="profile-emoji">📊</div>
-      <div class="profile-name" style="font-size:12px;">Investments</div>
-      <div class="profile-desc" style="font-size:10px;">Stocks, MF, Gold</div>
-    </div>
-    <!-- Profile 3 -->
-    <div class="profile-card p3" onclick="switchProfile('parked')" id="profileCard_parked">
-      <div class="profile-emoji">🏦</div>
-      <div class="profile-name" style="font-size:12px;" id="profile3Name">Other Person</div>
-      <div class="profile-desc" style="font-size:10px;">FD, Gold, Loans, Shop</div>
-    </div>
-  </div>
-  <div style="text-align:center;margin:-8px 16px 18px;">
-    <button onclick="renameProfile3()" style="background:none;border:none;color:var(--primary);font-size:11px;font-weight:600;cursor:pointer;">✏️ Rename Profile 3</button>
-  </div>
 
   <div class="settings-section">
     <div class="settings-section-title">My Purchases</div>
@@ -6140,7 +6129,10 @@ function openProfileSwitcher() {
       <div class="profile-switch-name">${displayName}<small>${p.desc}</small></div>
       ${cur===p.id ? '<span style="color:var(--primary);font-weight:700;">●</span>' : '<span style="color:var(--muted);">›</span>'}
     </div>`;
-  }).join('');
+  }).join('') + `
+    <div style="text-align:center;margin-top:10px;">
+      <button onclick="renameProfile3()" style="background:none;border:none;color:var(--primary);font-size:12px;font-weight:700;cursor:pointer;">✏️ Rename 3rd profile</button>
+    </div>`;
   document.getElementById('profileSwitchModal').classList.add('open');
 }
 function closeProfileSwitcher(e) {
@@ -6170,6 +6162,7 @@ function initSettingsAccordion() {
     if (otherChildren.length === 0) return;
 
     title.classList.add('accordion-head');
+    sec.classList.add('has-accordion');
     const key = 'acc_' + idx;
     // Default: collapsed (so the page is tidy on first open)
     const isCollapsed = saved[key] !== undefined ? saved[key] : true;
