@@ -1832,6 +1832,12 @@
 
   <div class="settings-section">
     <div class="settings-section-title">Data & Backup</div>
+    <!-- Backup-status widget (auto-updated) -->
+    <div id="backupStatusWidget" style="margin-bottom:10px;padding:12px 14px;border-radius:14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);font-size:12px;color:var(--text);">
+      <div id="backupStatusCloud" style="font-weight:700;">Loading backup status...</div>
+      <div id="backupStatusLocal" style="font-size:11px;color:var(--muted);margin-top:3px;"></div>
+      <div id="backupStatusFile" style="font-size:11px;color:var(--muted);margin-top:2px;"></div>
+    </div>
     <div class="settings-card">
       <div class="settings-row" onclick="exportBackup()" style="cursor:pointer;">
         <span class="settings-icon">💾</span>
@@ -2933,6 +2939,9 @@ function exportBackup() {
   a.download = `finance-backup-${new Date().toISOString().slice(0,10)}.json`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  try { localStorage.setItem('lastAutoBackup', String(Date.now())); } catch(_) {}
+  // Refresh backup status widget if visible
+  if (typeof renderBackupStatus === 'function') setTimeout(renderBackupStatus, 100);
 }
 function showAutoBackups() {
   const backups = getBackups();
@@ -3656,6 +3665,39 @@ function renderSettings() {
   renderFamilySettings();
   renderReminders();
   updateNotifPermRow();
+  renderBackupStatus();
+}
+
+function renderBackupStatus() {
+  const cloudEl = document.getElementById('backupStatusCloud');
+  const localEl = document.getElementById('backupStatusLocal');
+  const fileEl  = document.getElementById('backupStatusFile');
+  if (!cloudEl) return;
+  // Cloud
+  if (currentUser) {
+    cloudEl.innerHTML = `☁️ <span style="color:#059669;">Cloud sync: ACTIVE</span> · Signed in as ${currentUser.email || currentUser.displayName || 'Google account'}`;
+  } else {
+    cloudEl.innerHTML = `⚠️ <span style="color:var(--expense);">Cloud sync: OFF</span> — Tap "☁️ Sign in" at the top right to enable automatic cloud backup`;
+  }
+  // Local rolling backups
+  const backups = getBackups();
+  if (backups.length) {
+    const latest = new Date(backups[0].ts);
+    const ago = Math.round((Date.now() - latest.getTime()) / 60000);
+    const whenLocal = ago < 1 ? 'just now' : (ago < 60 ? `${ago} min ago` : `${Math.round(ago/60)} h ago`);
+    localEl.textContent = `🕘 Auto-backup snapshots: ${backups.length} · latest ${whenLocal}`;
+  } else {
+    localEl.textContent = '🕘 Auto-backup snapshots: none yet';
+  }
+  // Last manual file backup
+  const lastFile = parseInt(localStorage.getItem('lastAutoBackup') || '0');
+  if (lastFile) {
+    const ago = Math.round((Date.now() - lastFile) / (60*60*1000));
+    const whenFile = ago < 24 ? `${ago} h ago` : `${Math.round(ago/24)} day(s) ago`;
+    fileEl.textContent = `💾 Last downloaded backup file: ${whenFile}`;
+  } else {
+    fileEl.textContent = `💾 Last downloaded backup file: never — app will prompt every 7 days`;
+  }
 }
 function renderAllocEdit() {
   document.getElementById('allocEditForm').innerHTML =
@@ -6197,6 +6239,22 @@ scheduleAllReminders();
 injectModalCloseButtons();
 initSettingsAccordion();
 
+// ── Robust page persistence: write on every navigate AND on unload/visibility change ──
+window.addEventListener('beforeunload', () => {
+  try {
+    const a = document.querySelector('.page.active');
+    if (a) localStorage.setItem('currentPage', a.id.replace('page-',''));
+  } catch(_) {}
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    try {
+      const a = document.querySelector('.page.active');
+      if (a) localStorage.setItem('currentPage', a.id.replace('page-',''));
+    } catch(_) {}
+  }
+});
+
 // Restore last visited page (so refresh doesn't always send to home)
 (function restoreLastPage() {
   try {
@@ -6205,6 +6263,29 @@ initSettingsAccordion();
     if (last && validPages.includes(last) && last !== 'home') {
       navigate(last);
     }
+  } catch(_) {}
+})();
+
+// ── AUTO-BACKUP: prompt to save a JSON backup file every 7 days when you open the app ──
+(function autoBackupCheck() {
+  try {
+    const last = parseInt(localStorage.getItem('lastAutoBackup') || '0');
+    const now = Date.now();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    // Only if there's meaningful data
+    const dataCount = snapshotDataCount(buildSnapshot());
+    if (dataCount === 0) return;
+    if (now - last < sevenDays) return;
+    // Defer slightly so the app renders first
+    setTimeout(() => {
+      if (confirm(`📥 Weekly auto-backup\n\nIt's been a while since your last manual backup file.\nDownload a safety copy now? (recommended for long-term safety)\n\nYour cloud sync stays on regardless.`)) {
+        exportBackup();
+        localStorage.setItem('lastAutoBackup', String(now));
+      } else {
+        // Snooze 24h before asking again
+        localStorage.setItem('lastAutoBackup', String(now - sevenDays + 24*60*60*1000));
+      }
+    }, 3000);
   } catch(_) {}
 })();
 if (notifSupported() && Notification.permission === 'default') {
