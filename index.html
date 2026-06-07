@@ -2054,9 +2054,19 @@
 <!-- ══════════ PROFILE 3: PARKED MONEY ══════════ -->
 <div class="page page-pad" id="page-parked">
   <div class="parked-summary">
-    <div class="parked-summary-label" id="parkedOwnerLabel">🏦 Other Person · Total Parked</div>
-    <div class="parked-summary-amount" id="parkedTotal">₹0</div>
-    <div class="parked-summary-sub" id="parkedCount">0 entries</div>
+    <div class="parked-summary-label" id="parkedOwnerLabel">🏦 Jayanthi</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;align-items:end;">
+      <div>
+        <div style="font-size:10px;opacity:.85;font-weight:800;letter-spacing:.5px;">CURRENTLY PARKED</div>
+        <div id="parkedTotal" style="font-size:22px;font-weight:800;letter-spacing:-.5px;line-height:1.15;">₹0</div>
+        <div id="parkedCount" style="font-size:11px;opacity:.95;font-weight:700;margin-top:1px;">Profit +₹0</div>
+      </div>
+      <div style="border-left:1px solid rgba(255,255,255,0.25);padding-left:14px;">
+        <div style="font-size:10px;opacity:.85;font-weight:800;letter-spacing:.5px;">CLOSED</div>
+        <div id="parkedClosedAmt" style="font-size:22px;font-weight:800;letter-spacing:-.5px;line-height:1.15;">₹0</div>
+        <div id="parkedClosedProfit" style="font-size:11px;opacity:.95;font-weight:700;margin-top:1px;">Earned +₹0</div>
+      </div>
+    </div>
   </div>
 
   <div id="parkedSections"></div>
@@ -5744,14 +5754,30 @@ function parkedEntryProfit(p) {
 function renderParked() {
   // Owner label
   const ownerLabel = document.getElementById('parkedOwnerLabel');
-  if (ownerLabel) ownerLabel.textContent = `🏦 ${state.profile3Name || 'Other Person'} · Total Parked`;
-  const total = (state.parkedMoney || []).reduce((s,p) => s + (p.amount || 0), 0);
-  const totalProfit = (state.parkedMoney || []).reduce((s,p) => s + parkedEntryProfit(p), 0);
-  const profitPct = total > 0 ? Math.round((totalProfit / total) * 100) : 0;
-  document.getElementById('parkedTotal').textContent = fmt(total);
-  const profitSign = totalProfit >= 0 ? '+' : '-';
+  if (ownerLabel) ownerLabel.textContent = `🏦 ${state.profile3Name || 'Other Person'}`;
+
+  // Split entries into active vs closed (FD matured / Loan closed past date)
+  const isClosedEntry = p => (p.type==='fd' || p.type==='loan') && p.closeDate && new Date(p.closeDate) <= new Date();
+  const all = state.parkedMoney || [];
+  const activeItems = all.filter(p => !isClosedEntry(p));
+  const closedItems = all.filter(p =>  isClosedEntry(p));
+
+  const activeTotal  = activeItems.reduce((s,p) => s + (p.amount || 0), 0);
+  const closedTotal  = closedItems.reduce((s,p) => s + (p.amount || 0), 0);
+  const activeProfit = activeItems.reduce((s,p) => s + parkedEntryProfit(p), 0);
+  const closedProfit = closedItems.reduce((s,p) => s + parkedEntryProfit(p), 0);
+  const activeProfitPct = activeTotal > 0 ? Math.round((activeProfit / activeTotal) * 100) : 0;
+
+  document.getElementById('parkedTotal').textContent = fmt(activeTotal);
+  const aSign = activeProfit >= 0 ? '+' : '-';
   document.getElementById('parkedCount').innerHTML =
-    `Profit ${profitSign}${fmt(Math.abs(totalProfit))} (${profitSign}${Math.abs(profitPct)}%)`;
+    `Profit ${aSign}${fmt(Math.abs(activeProfit))} (${aSign}${Math.abs(activeProfitPct)}%)`;
+  const closedEl = document.getElementById('parkedClosedAmt');
+  if (closedEl) closedEl.textContent = fmt(closedTotal);
+  const closedProfEl = document.getElementById('parkedClosedProfit');
+  if (closedProfEl) closedProfEl.textContent = closedTotal > 0
+    ? `Earned +${fmt(Math.abs(closedProfit))}`
+    : 'No closed yet';
 
   // Gold portfolio summary (invested vs current vs P/L)
   const goldItems = (state.parkedMoney || []).filter(p => p.type==='gold' && p.grams);
