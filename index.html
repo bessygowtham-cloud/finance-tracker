@@ -1497,13 +1497,6 @@
   </div>
   <div class="settings-header-controls" id="settingsHeaderControls">
     <button class="settings-header-btn" id="syncHeaderBtn" onclick="signInGoogle()">☁️ Sign in</button>
-    <div class="settings-header-toggle">
-      🌙
-      <label class="toggle-switch" style="margin:0;">
-        <input type="checkbox" id="darkModeToggleHeader" onchange="toggleDarkMode()" />
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
   </div>
 </div>
 
@@ -3235,13 +3228,13 @@ function txnHTML(t) {
   const subCatPart  = t.subCategory ? ` · ${t.subCategory}` : '';
   const spentForPart= t.spentFor ? ` · 👤 ${t.spentFor}` : '';
   const bankPart    = t.bank ? ` · 🏦 ${t.bank}` : '';
-  return `<div class="txn-item">
+  return `<div class="txn-item" onclick="openEditTxn('${t.id}')" style="cursor:pointer;">
     <div class="txn-info">
       <div class="txn-name">${t.note||cat.name}</div>
       <div class="txn-meta">${cat.name}${subCatPart} · ${dateStr}${accPart}${bankPart}${spentForPart}</div>
     </div>
     <div class="txn-amount ${t.type}">${sign}${fmt(t.amount)}</div>
-    <div class="txn-more-wrap">
+    <div class="txn-more-wrap" onclick="event.stopPropagation();">
       <button class="txn-more-btn" onclick="toggleTxnMenu(event,'${t.id}')">⋯</button>
       <div class="txn-more-menu" id="txnMenu_${t.id}">
         <button onclick="openEditTxn('${t.id}');closeAllTxnMenus();">✏️ Edit</button>
