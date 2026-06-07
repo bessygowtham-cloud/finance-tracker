@@ -368,6 +368,21 @@
     .txn-list-flat { margin: 0 16px 10px; padding: 0 4px; }
     .txn-list-flat .txn-item { padding: 13px 0; }
 
+    /* Small left-side delete icon on each transaction */
+    .txn-del-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      opacity: 0.45;
+      flex-shrink: 0;
+      transition: opacity .15s, background .15s, transform .15s;
+    }
+    .txn-del-btn:hover { opacity: 1; }
+    .txn-del-btn:active { background: rgba(239,68,68,0.12); transform: scale(0.9); opacity: 1; }
+
     /* More (kebab) menu */
     .txn-more-wrap { position: relative; flex-shrink: 0; }
     .txn-more-btn {
@@ -3218,18 +3233,12 @@ function txnHTML(t) {
   const spentForPart= t.spentFor ? ` · 👤 ${t.spentFor}` : '';
   const bankPart    = t.bank ? ` · 🏦 ${t.bank}` : '';
   return `<div class="txn-item" onclick="openEditTxn('${t.id}')" style="cursor:pointer;">
+    <button class="txn-del-btn" onclick="event.stopPropagation();deleteTxn('${t.id}');" title="Delete">🗑️</button>
     <div class="txn-info">
       <div class="txn-name">${t.note||cat.name}</div>
       <div class="txn-meta">${cat.name}${subCatPart} · ${dateStr}${accPart}${bankPart}${spentForPart}</div>
     </div>
     <div class="txn-amount ${t.type}">${sign}${fmt(t.amount)}</div>
-    <div class="txn-more-wrap" onclick="event.stopPropagation();">
-      <button class="txn-more-btn" onclick="toggleTxnMenu(event,'${t.id}')">⋯</button>
-      <div class="txn-more-menu" id="txnMenu_${t.id}">
-        <button onclick="openEditTxn('${t.id}');closeAllTxnMenus();">✏️ Edit</button>
-        <button class="danger" onclick="deleteTxn('${t.id}');closeAllTxnMenus();">🗑️ Delete</button>
-      </div>
-    </div>
   </div>`;
 }
 function closeAllTxnMenus() {
