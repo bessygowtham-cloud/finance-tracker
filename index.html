@@ -1620,18 +1620,18 @@
 
 <!-- ══════════ ADD TRANSACTION ══════════ -->
 <div class="page" id="page-add">
-  <!-- Compact Expense/Income toggle (pill, defaulted to Expense) -->
-  <div class="add-type-pill">
-    <button class="active expense" id="typeExpense" onclick="setType('expense')">Expense</button>
-    <button id="typeIncome" onclick="setType('income')">Income</button>
-  </div>
-
   <div class="add-flat">
-    <!-- Amount -->
+    <!-- Amount with Expense/Income toggle on the right -->
     <div class="form-group">
-      <div class="amount-input-wrap">
-        <span class="amount-currency">₹</span>
-        <input type="number" class="form-input" id="addAmount" placeholder="0" inputmode="decimal" />
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="amount-input-wrap" style="flex:1;">
+          <span class="amount-currency">₹</span>
+          <input type="number" class="form-input" id="addAmount" placeholder="0" inputmode="decimal" />
+        </div>
+        <div class="add-type-pill" style="margin:0;flex-shrink:0;">
+          <button class="active expense" id="typeExpense" onclick="setType('expense')">Exp</button>
+          <button id="typeIncome" onclick="setType('income')">Inc</button>
+        </div>
       </div>
     </div>
 
