@@ -2428,18 +2428,17 @@
     <div class="modal-handle"></div>
     <div class="modal-title">Edit Transaction</div>
 
-    <!-- Type Toggle -->
-    <div class="edit-type-toggle">
-      <button id="editTypeExpense" onclick="setEditType('expense')">↓ Expense</button>
-      <button id="editTypeIncome"  onclick="setEditType('income')">↑ Income</button>
-    </div>
-
-    <!-- Amount -->
+    <!-- Amount with Expense/Income toggle on the right -->
     <div class="form-group">
-      <label class="form-label">Amount</label>
-      <div class="amount-input-wrap">
-        <span class="amount-currency">₹</span>
-        <input type="number" class="form-input" id="editAmount" placeholder="0" inputmode="decimal" />
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="amount-input-wrap" style="flex:1;">
+          <span class="amount-currency">₹</span>
+          <input type="number" class="form-input" id="editAmount" placeholder="0" inputmode="decimal" />
+        </div>
+        <div class="add-type-pill" style="margin:0;flex-shrink:0;">
+          <button id="editTypeExpense" onclick="setEditType('expense')">Exp</button>
+          <button id="editTypeIncome"  onclick="setEditType('income')">Inc</button>
+        </div>
       </div>
     </div>
 
