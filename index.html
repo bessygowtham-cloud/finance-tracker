@@ -2361,6 +2361,9 @@
     <div class="form-group">
       <label class="form-label">Choose Category</label>
       <div class="sc-cat-grid" id="scCatGrid">
+        <button class="cat-btn" id="sc-water" onclick="setSubCatFor('water')">
+          <span class="cat-emoji">💧</span><span class="cat-name">Water</span>
+        </button>
         <button class="cat-btn" id="sc-food" onclick="setSubCatFor('food')">
           <span class="cat-emoji">🍔</span><span class="cat-name">Food</span>
         </button>
@@ -2369,6 +2372,9 @@
         </button>
         <button class="cat-btn" id="sc-health" onclick="setSubCatFor('health')">
           <span class="cat-emoji">💊</span><span class="cat-name">Health</span>
+        </button>
+        <button class="cat-btn" id="sc-loan" onclick="setSubCatFor('loan')">
+          <span class="cat-emoji">🏦</span><span class="cat-name">Loan</span>
         </button>
         <button class="cat-btn" id="sc-bills" onclick="setSubCatFor('bills')">
           <span class="cat-emoji">⚡</span><span class="cat-name">Bills</span>
@@ -2827,6 +2833,15 @@ function load() {
   if (!state.subCategories) state.subCategories = {};
   if (!state.subCategories.water) state.subCategories.water = ['Drinking','Metro'];
   if (!state.subCategories.loan)  state.subCategories.loan  = ['Home loan','Personal loan'];
+  // One-time cleanup: remove old custom "Drinking water" categories
+  if (!localStorage.getItem('drinkingWaterRemoved')) {
+    const looksLikeOldWater = c => c && c.name && /drinking\s*water/i.test(c.name);
+    if (state.customCats) {
+      if (state.customCats.expense) state.customCats.expense = state.customCats.expense.filter(c => !looksLikeOldWater(c));
+      if (state.customCats.income)  state.customCats.income  = state.customCats.income.filter(c => !looksLikeOldWater(c));
+    }
+    localStorage.setItem('drinkingWaterRemoved', '1');
+  }
   if (Object.keys(state.allocations).length === 0)
     EXPENSE_CATS.forEach(c => { state.allocations[c.id] = 0; });
   if (state.darkMode) {
@@ -4225,8 +4240,12 @@ let _subCatFor = 'food';
 
 function setSubCatFor(cat) {
   _subCatFor = cat;
-  SUB_CAT_IDS.forEach(id => document.getElementById('sc-'+id).classList.remove('selected'));
-  document.getElementById('sc-'+cat).classList.add('selected');
+  SUB_CAT_IDS.forEach(id => {
+    const el = document.getElementById('sc-'+id);
+    if (el) el.classList.remove('selected');
+  });
+  const sel = document.getElementById('sc-'+cat);
+  if (sel) sel.classList.add('selected');
 }
 function renderSubCatChips() {
   const field = document.getElementById('subCatField');
@@ -4255,8 +4274,12 @@ function selectSubCat(el, name) {
 function openSubCatModal(preselect) {
   _subCatFor = preselect || 'food';
   document.getElementById('subCatNameInput').value = '';
-  SUB_CAT_IDS.forEach(id => document.getElementById('sc-'+id).classList.remove('selected'));
-  document.getElementById('sc-'+_subCatFor).classList.add('selected');
+  SUB_CAT_IDS.forEach(id => {
+    const el = document.getElementById('sc-'+id);
+    if (el) el.classList.remove('selected');
+  });
+  const sel = document.getElementById('sc-'+_subCatFor);
+  if (sel) sel.classList.add('selected');
   document.getElementById('subCatModal').classList.add('open');
 }
 function closeSubCatModal(e) {
