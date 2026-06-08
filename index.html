@@ -2491,7 +2491,10 @@
       <input type="date" class="form-input" id="editDate" />
     </div>
 
-    <button class="btn-primary" onclick="saveEditTxn()">Update Transaction</button>
+    <div style="display:flex;gap:8px;align-items:stretch;">
+      <button onclick="deleteFromEditModal()" style="background:rgba(239,68,68,0.1);border:1.5px solid rgba(239,68,68,0.35);color:var(--expense);padding:13px 20px;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;">Delete</button>
+      <button class="btn-primary" style="flex:1;margin-top:0;" onclick="saveEditTxn()">Update Transaction</button>
+    </div>
   </div>
 </div>
 
@@ -3248,7 +3251,6 @@ function txnHTML(t) {
   const spentForPart= t.spentFor ? ` · 👤 ${t.spentFor}` : '';
   const bankPart    = t.bank ? ` · 🏦 ${t.bank}` : '';
   return `<div class="txn-item" onclick="openEditTxn('${t.id}')" style="cursor:pointer;">
-    <button class="txn-del-btn" onclick="event.stopPropagation();deleteTxn('${t.id}');" title="Delete">🗑️</button>
     <div class="txn-info">
       <div class="txn-name">${t.note||cat.name}</div>
       <div class="txn-meta">${cat.name}${subCatPart} · ${dateStr}${accPart}${bankPart}${spentForPart}</div>
@@ -3477,6 +3479,16 @@ function selectEditSubCat(s) {
   renderEditSubCatChips();
 }
 
+function deleteFromEditModal() {
+  if (!editState.txnId) return;
+  if (!confirm('Delete this transaction?')) return;
+  state.transactions = state.transactions.filter(t => t.id !== editState.txnId);
+  save();
+  document.getElementById('editTxnModal').classList.remove('open');
+  const a = document.querySelector('.page.active');
+  if (a && a.id === 'page-home') renderDashboard();
+  if (a && a.id === 'page-txns') renderTxns();
+}
 function saveEditTxn() {
   const amount = parseFloat(document.getElementById('editAmount').value);
   const note   = document.getElementById('editNote').value.trim();
