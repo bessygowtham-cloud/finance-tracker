@@ -2116,6 +2116,15 @@
         <label class="form-label">Interest Rate (% per year)</label>
         <input type="number" class="form-input" id="parkedInterestPct" placeholder="e.g., 12" inputmode="decimal" step="0.01" />
       </div>
+      <div class="form-group" id="parkedCompoundingField" style="display:none;">
+        <label class="form-label">Compounding</label>
+        <select class="form-input" id="parkedCompounding">
+          <option value="simple">Simple Interest</option>
+          <option value="quarterly">Quarterly (most Indian FDs)</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
       <div class="form-group" id="parkedUpfrontField" style="display:none;">
         <label class="form-label">Interest Received Upfront (₹) <span style="font-weight:400;text-transform:none;letter-spacing:0;">(if taken when giving the loan)</span></label>
         <input type="number" class="form-input" id="parkedInterestUpfront" placeholder="0" inputmode="decimal" />
@@ -5607,6 +5616,9 @@ function renderParkedTypeGrid() {
   // Upfront-interest field is only meaningful for loans
   const upfrontField = document.getElementById('parkedUpfrontField');
   if (upfrontField) upfrontField.style.display = isLoan ? '' : 'none';
+  // Compounding option is only meaningful for FDs
+  const compField = document.getElementById('parkedCompoundingField');
+  if (compField) compField.style.display = isFd ? '' : 'none';
   // FD: always show maturity date (it's a known future date when you open an FD)
   // Loan: only on edit (loans are often open-ended)
   const showClose = isFd || (isLoan && _parkedEditingId);
@@ -5650,6 +5662,7 @@ function openParkedModal(id) {
   document.getElementById('parkedNotes').value  = p ? (p.notes || '') : '';
   document.getElementById('parkedInterestPct').value = (p && p.interestPct) ? p.interestPct : '';
   document.getElementById('parkedInterestUpfront').value = (p && p.interestUpfront) ? p.interestUpfront : '';
+  document.getElementById('parkedCompounding').value = (p && p.compounding) ? p.compounding : 'simple';
   document.getElementById('parkedCloseDate').value   = (p && p.closeDate) ? p.closeDate : '';
   // Receipt state
   _parkedReceiptData = (p && p.receipt) ? p.receipt : null;
@@ -5680,9 +5693,10 @@ function saveParked() {
   const closeDate   = hasInterest ? document.getElementById('parkedCloseDate').value : '';
   const interestUpfront = (_parkedSelectedType === 'loan') ? (parseFloat(document.getElementById('parkedInterestUpfront').value) || 0) : 0;
 
+  const compounding = (_parkedSelectedType === 'fd') ? document.getElementById('parkedCompounding').value : '';
   const fields = {
     type: _parkedSelectedType, name, amount, date, notes,
-    grams, purity, interestPct, closeDate, interestUpfront,
+    grams, purity, interestPct, closeDate, interestUpfront, compounding,
     receipt: _parkedReceiptData || '',
     receiptType: _parkedReceiptType || '',
     receiptName: _parkedReceiptName || '',
@@ -5753,7 +5767,16 @@ function parkedInterestProfit(p) {
     return { interest, months, monthlyInt, currentValue: (p.amount||0) + interest, closed: matured, isLoan: true };
   }
   const days = Math.max(0, Math.floor((end - start) / (1000*60*60*24)));
-  const interest = (p.amount || 0) * (p.interestPct / 100) * (days / 365);
+  const years = days / 365;
+  // FD: compound interest if configured
+  if (p.compounding && p.compounding !== 'simple') {
+    const n = p.compounding === 'quarterly' ? 4 : (p.compounding === 'monthly' ? 12 : 1);
+    const r = (p.interestPct || 0) / 100;
+    const amount = (p.amount || 0) * Math.pow(1 + r/n, n*years);
+    const interest = amount - (p.amount || 0);
+    return { interest, days, currentValue: amount, closed: matured };
+  }
+  const interest = (p.amount || 0) * (p.interestPct / 100) * years;
   return { interest, days, currentValue: (p.amount||0) + interest, closed: matured };
 }
 
@@ -5779,6 +5802,15 @@ function parkedMaturityValue(p) {
   }
   const days  = Math.max(0, Math.floor((end - start) / (1000*60*60*24)));
   const years = days / 365;
+  // FD: compound interest if configured
+  if (p.type === 'fd' && p.compounding && p.compounding !== 'simple') {
+    const n = p.compounding === 'quarterly' ? 4 : (p.compounding === 'monthly' ? 12 : 1);
+    const r = (p.interestPct || 0) / 100;
+    const maturityAmount = (p.amount || 0) * Math.pow(1 + r/n, n*years);
+    const interest = maturityAmount - (p.amount || 0);
+    const pct = (p.amount || 0) > 0 ? (interest / p.amount) * 100 : 0;
+    return { interest, years, maturityAmount, pct };
+  }
   const interest = (p.amount || 0) * (p.interestPct / 100) * years;
   const maturityAmount = (p.amount || 0) + interest;
   const pct = (p.amount || 0) > 0 ? (interest / p.amount) * 100 : 0;
