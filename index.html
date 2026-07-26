@@ -3311,10 +3311,11 @@ function renderAddPage() {
   renderSpentForChips();
 }
 function setType(type) {
-  state.addType=type; state.selectedCat=null;
+  state.addType=type; state.selectedCat=null; state.selectedSpentFor=null;
   document.getElementById('typeExpense').className=type==='expense'?'active expense':'';
   document.getElementById('typeIncome').className=type==='income'?'active income':'';
   renderCatGrid();
+  renderSpentForChips();
 }
 function renderCatGrid() {
   const builtIn = state.addType==='expense'?EXPENSE_CATS:INCOME_CATS;
@@ -4388,6 +4389,7 @@ function renderSpentForChips() {
   const group = document.getElementById('spentForGroup');
   const wrap  = document.getElementById('spentForChips');
   if (!group) return;
+  if (state.addType==='income') { group.style.display='none'; return; }
   const members = state.familyMembers || [];
   if (!members.length) { group.style.display='none'; return; }
   group.style.display = '';
