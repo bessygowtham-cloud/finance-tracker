@@ -2244,6 +2244,7 @@
       <span id="yearLabel" style="font-size:19px;font-weight:700;min-width:60px;text-align:center;color:var(--text);"></span>
       <button onclick="changeYear(1)" style="border:none;background:var(--input-bg);backdrop-filter:blur(10px);border-radius:10px;padding:7px 16px;font-size:18px;cursor:pointer;color:var(--text);border:1px solid var(--input-border);">›</button>
     </div>
+    <button class="month-option" id="allTimeOption" onclick="selectAllTime()" style="width:100%;margin-bottom:10px;">🗓️ All Time</button>
     <div class="month-grid" id="monthGrid"></div>
   </div>
 </div>
@@ -2815,6 +2816,7 @@ let state = {
   darkMode: false,
   currentMonth: new Date().getMonth(),
   currentYear: new Date().getFullYear(),
+  viewAllTime: true,
   txnFilter: 'all', addType: 'expense',
   selectedCat: null, selectedSubCat: null, selectedSpentFor: null, selectedBank: null,
   activeAccount: 'all',
@@ -2834,6 +2836,7 @@ function load() {
     state.allocations  = p.allocations  || {};
     state.currentMonth = p.currentMonth ?? new Date().getMonth();
     state.currentYear  = p.currentYear  ?? new Date().getFullYear();
+    state.viewAllTime  = p.viewAllTime  ?? true;
     state.recurring    = p.recurring    || [];
     state.accounts     = p.accounts     || JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
     state.customCats     = p.customCats     || { expense: [], income: [] };
@@ -2889,6 +2892,7 @@ function buildSnapshot() {
     investments: (typeof investments !== 'undefined' ? investments : []),
     darkMode: state.darkMode,
     currentMonth: state.currentMonth, currentYear: state.currentYear,
+    viewAllTime: state.viewAllTime,
   };
 }
 function save() {
@@ -3043,6 +3047,16 @@ function monthTxns(account) {
   const acc = account !== undefined ? account : state.activeAccount;
   return state.transactions.filter(t => {
     const d = new Date(t.date);
+    const monthMatch = state.viewAllTime || (d.getMonth()===state.currentMonth && d.getFullYear()===state.currentYear);
+    return monthMatch && (acc==='all' || t.account===acc);
+  });
+}
+// Always scoped to state.currentMonth/currentYear, ignoring the All Time toggle.
+// Used by widgets (forecast, insights, budget pacing) whose math only makes sense per-month.
+function monthOnlyTxns(account) {
+  const acc = account !== undefined ? account : state.activeAccount;
+  return state.transactions.filter(t => {
+    const d = new Date(t.date);
     return d.getMonth()===state.currentMonth && d.getFullYear()===state.currentYear
       && (acc==='all' || t.account===acc);
   });
@@ -3100,12 +3114,23 @@ function closeMonthPicker(e) { if(e.target===document.getElementById('monthModal
 function changeYear(d) { pickerYear+=d; renderMonthGrid(); }
 function renderMonthGrid() {
   document.getElementById('yearLabel').textContent = pickerYear;
+  const allTimeBtn = document.getElementById('allTimeOption');
+  if (allTimeBtn) allTimeBtn.classList.toggle('active', !!state.viewAllTime);
   document.getElementById('monthGrid').innerHTML = MONTHS.map((m,i)=>
-    `<button class="month-option ${i===state.currentMonth&&pickerYear===state.currentYear?'active':''}" onclick="selectMonth(${i},${pickerYear})">${m}</button>`
+    `<button class="month-option ${!state.viewAllTime&&i===state.currentMonth&&pickerYear===state.currentYear?'active':''}" onclick="selectMonth(${i},${pickerYear})">${m}</button>`
   ).join('');
 }
 function selectMonth(m,y) {
-  state.currentMonth=m; state.currentYear=y; save();
+  state.currentMonth=m; state.currentYear=y; state.viewAllTime=false; save();
+  document.getElementById('monthModal').classList.remove('open');
+  updateMonthPill();
+  const a = document.querySelector('.page.active');
+  if(a.id==='page-home') renderDashboard();
+  if(a.id==='page-txns') renderTxns();
+  if(a.id==='page-charts') renderCharts();
+}
+function selectAllTime() {
+  state.viewAllTime=true; save();
   document.getElementById('monthModal').classList.remove('open');
   updateMonthPill();
   const a = document.querySelector('.page.active');
@@ -3114,7 +3139,7 @@ function selectMonth(m,y) {
   if(a.id==='page-charts') renderCharts();
 }
 function updateMonthPill() {
-  const label = MONTHS[state.currentMonth]+' '+state.currentYear;
+  const label = state.viewAllTime ? 'All Time' : (MONTHS[state.currentMonth]+' '+state.currentYear);
   const mp = document.getElementById('monthPill');
   if (mp) {
     mp.textContent = label + ' ▾';
@@ -3122,9 +3147,9 @@ function updateMonthPill() {
     const pg = active ? active.id.replace('page-','') : 'home';
     mp.style.display = ['home','txns','charts'].includes(pg) ? '' : 'none';
   }
-  // Show "Viewing past month" warning if currentMonth/Year is not today's
+  // Show "Viewing past month" warning only when browsing a specific non-current month
   const today = new Date();
-  const isStale = state.currentMonth !== today.getMonth() || state.currentYear !== today.getFullYear();
+  const isStale = !state.viewAllTime && (state.currentMonth !== today.getMonth() || state.currentYear !== today.getFullYear());
   const wrap = document.getElementById('jumpToTodayWrap');
   if (wrap) wrap.style.display = isStale ? '' : 'none';
 }
@@ -3132,6 +3157,7 @@ function jumpToCurrentMonth() {
   const today = new Date();
   state.currentMonth = today.getMonth();
   state.currentYear  = today.getFullYear();
+  state.viewAllTime  = false;
   save();
   updateMonthPill();
   const a = document.querySelector('.page.active');
@@ -3215,9 +3241,12 @@ function renderDashboard() {
   document.getElementById('nwLiabilities').textContent = fmt(liabilities);
   document.getElementById('dashNetWorth').textContent = (netWorth>=0?'+':'-')+fmt(Math.abs(netWorth));
   document.getElementById('dashNetWorth').style.color = netWorth>=0?'#a7f3d0':'#fca5a5';
-  renderSafeToSpend(income, expense);
-  renderForecastChips(txns, income, expense);
-  renderInsights(txns, income, expense);
+  const monthTx = monthOnlyTxns();
+  const monthIncome  = monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const monthExpense = monthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  renderSafeToSpend(monthIncome, monthExpense);
+  renderForecastChips(monthTx, monthIncome, monthExpense);
+  renderInsights(monthTx, monthIncome, monthExpense);
   renderUpcomingBills();
   renderGoalsList();
 
@@ -3226,7 +3255,7 @@ function renderDashboard() {
       `<button class="account-chip ${state.activeAccount===a.id?'active':''}" onclick="setActiveAccount('${a.id}')">${a.emoji} ${a.name}</button>`
     ).join('');
 
-  const allTxns = monthTxns('all');
+  const allTxns = monthOnlyTxns('all');
   const allocEl = document.getElementById('dashAllocations');
   const entries = EXPENSE_CATS.filter(c=>state.allocations[c.id]>0);
   if (!entries.length) {
@@ -3592,7 +3621,7 @@ function renderCharts() {
   const dark  = state.darkMode;
   const textC = dark?'#9990c8':'#6b6490';
   const gridC = dark?'rgba(255,255,255,0.07)':'rgba(124,110,246,0.1)';
-  document.getElementById('pieMonthLabel').textContent = MONTHS[state.currentMonth]+' '+state.currentYear;
+  document.getElementById('pieMonthLabel').textContent = state.viewAllTime ? 'All Time' : (MONTHS[state.currentMonth]+' '+state.currentYear);
 
   if(pieInst){pieInst.destroy();pieInst=null;}
   const pieEl=document.getElementById('pieChart');
@@ -4124,7 +4153,7 @@ function renderInsights(txns, income, expense) {
   }
 
   // Budget overspend warning
-  const allTxns=monthTxns('all');
+  const allTxns=monthOnlyTxns('all');
   EXPENSE_CATS.forEach(c=>{
     const budget=state.allocations[c.id];
     if(!budget) return;
