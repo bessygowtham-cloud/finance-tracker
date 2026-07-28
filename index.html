@@ -4052,6 +4052,28 @@ function applyAllRecurring() {
   });
   save(); alert(added>0?`${added} recurring transaction(s) added for ${MONTHS[state.currentMonth]}!`:'All recurring already applied this month.');
 }
+// Silently adds any recurring transaction whose due day (this real calendar month) has
+// arrived and hasn't been added yet. Runs once on app load so recurring transactions
+// show up in History/Charts without needing a manual "Apply Recurring" tap every month.
+function autoApplyDueRecurring() {
+  try {
+    if (!state.recurring || !state.recurring.length) return;
+    const today = new Date();
+    const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+    const maxDay = new Date(y, m+1, 0).getDate();
+    let added = false;
+    state.recurring.filter(r=>r.active).forEach(r=>{
+      const day = Math.min(r.dayOfMonth, maxDay);
+      if (day > d) return; // not due yet this month
+      const already = state.transactions.some(t=>t.recurringId===r.id && new Date(t.date).getMonth()===m && new Date(t.date).getFullYear()===y);
+      if (already) return;
+      const date = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,subCategory:r.subCategory||'',note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
+      added = true;
+    });
+    if (added) save();
+  } catch(_) {}
+}
 
 // ══════════════════ CSV EXPORT ══════════════════
 function exportCSV() {
@@ -6365,6 +6387,7 @@ function injectModalCloseButtons() {
 load();
 loadInvestments();
 integrityCheckRestore();
+autoApplyDueRecurring();
 renderDashboard();
 updateMonthPill();
 updateProfilePill('home');
