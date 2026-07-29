@@ -1252,6 +1252,13 @@
       box-shadow: 0 -8px 40px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5);
       position: relative;
     }
+    .modal-close-sticky {
+      position: sticky;
+      top: 0;
+      height: 0;
+      overflow: visible;
+      z-index: 15;
+    }
     .modal-close-x {
       position: absolute;
       top: calc(14px + env(safe-area-inset-top));
@@ -1488,8 +1495,8 @@
       cursor: pointer; text-align: center; transition: all .2s;
       display: flex; flex-direction: column; align-items: center; gap: 3px;
     }
-    .purch-cat-btn .cat-emoji { font-size: 16px; }
-    .purch-cat-btn .cat-name { font-size: 9px; font-weight: 600; color: var(--muted); line-height: 1.2; }
+    .purch-cat-btn .cat-emoji { font-size: 15px; }
+    .purch-cat-btn .cat-name { font-size: 8px; font-weight: 600; color: var(--muted); line-height: 1.2; }
     .purch-cat-btn.selected { background: rgba(124,110,246,0.18); border-color: rgba(124,110,246,0.5); box-shadow: 0 0 0 2px rgba(124,110,246,0.15); }
     .purch-cat-btn.selected .cat-name { color: var(--primary); }
     .purch-summary-card {
@@ -6377,6 +6384,8 @@ function injectModalCloseButtons() {
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     const sheet = overlay.querySelector('.modal-sheet');
     if (!sheet || sheet.querySelector('.modal-close-x')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-close-sticky';
     const btn = document.createElement('button');
     btn.className = 'modal-close-x';
     btn.innerHTML = '✕';
@@ -6385,7 +6394,8 @@ function injectModalCloseButtons() {
       e.stopPropagation();
       overlay.classList.remove('open');
     };
-    sheet.insertBefore(btn, sheet.firstChild);
+    wrap.appendChild(btn);
+    sheet.insertBefore(wrap, sheet.firstChild);
   });
 }
 
