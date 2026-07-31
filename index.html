@@ -784,6 +784,11 @@
       background: none; border: none; color: inherit; font-size: 15px;
       font-weight: 700; cursor: pointer; padding: 0 2px; line-height: 1;
     }
+    .filtered-total-line {
+      text-align: center; font-size: 13px; font-weight: 700; color: var(--text);
+      margin: 0 16px 12px;
+    }
+    .filtered-total-line .filtered-total-count { font-weight: 500; color: var(--muted); }
     .no-data { text-align: center; padding: 30px 20px; color: var(--muted); font-size: 14px; }
 
     /* ── SETTINGS ── */
@@ -3644,10 +3649,21 @@ function renderTxns() {
   const personFilterM = _txnPersonFilter ? (state.familyMembers||[]).find(m=>m.name===_txnPersonFilter) : null;
   const banner = (_txnCategoryFilter?`<div class="cat-filter-banner"><span>Filtered by: ${catFilterCat?catFilterCat.emoji+' '+catFilterCat.name:_txnCategoryFilter}</span><button onclick="clearTxnCategoryFilter()">✕</button></div>`:'')
     + (_txnPersonFilter?`<div class="cat-filter-banner"><span>Person: ${personFilterM?personFilterM.emoji+' '+personFilterM.name:_txnPersonFilter}</span><button onclick="clearPersonFilter()">✕</button></div>`:'');
-  if (!filtered.length) { container.innerHTML=banner+'<div class="empty-state"><div class="emoji">📭</div><p>No transactions found.</p></div>'; return; }
+  const anyFilterActive = state.txnFilter!=='all' || !!_txnCategoryFilter || !!_txnPersonFilter || !!search;
+  let totalLine = '';
+  if (anyFilterActive) {
+    const filteredExpense = filtered.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const filteredIncome  = filtered.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const parts = [];
+    if (filteredExpense>0) parts.push(`Spent: ${fmt(filteredExpense)}`);
+    if (filteredIncome>0)  parts.push(`Income: ${fmt(filteredIncome)}`);
+    if (!parts.length) parts.push('Total: ₹0');
+    totalLine = `<div class="filtered-total-line">${parts.join(' · ')} <span class="filtered-total-count">(${filtered.length} txn${filtered.length!==1?'s':''})</span></div>`;
+  }
+  if (!filtered.length) { container.innerHTML=banner+totalLine+'<div class="empty-state"><div class="emoji">📭</div><p>No transactions found.</p></div>'; return; }
   const groups={};
   filtered.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t);});
-  container.innerHTML = banner+Object.entries(groups).map(([date,ts])=>{
+  container.innerHTML = banner+totalLine+Object.entries(groups).map(([date,ts])=>{
     const label=new Date(date).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
     return `<div class="txn-date-group">${label}</div><div class="txn-list-flat">${ts.map(t=>txnHTML(t)).join('')}</div>`;
   }).join('');
