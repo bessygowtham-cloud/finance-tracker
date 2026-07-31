@@ -1248,7 +1248,7 @@
       -webkit-backdrop-filter: blur(40px) saturate(200%);
       border: 1px solid var(--glass-border-light);
       border-radius: 28px 28px 0 0;
-      padding: 20px; width: 100%; max-height: 82vh; overflow-y: auto;
+      padding: 20px; width: 100%; max-height: 82vh; max-height: 82dvh; overflow-y: auto;
       box-shadow: 0 -8px 40px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5);
       position: relative;
     }
@@ -1739,6 +1739,7 @@
     <button class="filter-chip" onclick="setFilter('income',this)">Income</button>
     <button class="filter-chip" onclick="setFilter('expense',this)">Expense</button>
   </div>
+  <div class="filter-row" id="txnPersonFilterRow" style="display:none;"></div>
   <div id="txnListContainer"></div>
 </div>
 
@@ -2202,7 +2203,7 @@
 
 <!-- Receipt viewer modal -->
 <div class="modal-overlay" id="receiptViewerModal" onclick="closeReceiptViewer(event)">
-  <div class="modal-sheet" style="max-height:90vh;">
+  <div class="modal-sheet" style="max-height:90vh;max-height:90dvh;">
     <div class="modal-handle"></div>
     <div class="modal-title">Receipt</div>
     <div id="receiptViewerContent" style="text-align:center;"></div>
@@ -2460,7 +2461,7 @@
 
 <!-- EDIT TRANSACTION MODAL -->
 <div class="modal-overlay" id="editTxnModal" onclick="closeEditTxnModal(event)">
-  <div class="modal-sheet" style="max-height:90vh;">
+  <div class="modal-sheet" style="max-height:90vh;max-height:90dvh;">
     <div class="modal-handle"></div>
     <div class="modal-title">Edit Transaction</div>
 
@@ -2535,7 +2536,7 @@
 
 <!-- ADD PURCHASE MODAL -->
 <div class="modal-overlay" id="addPurchaseModal" onclick="closeAddPurchaseModal(event)">
-  <div class="modal-sheet" style="max-height:92vh;">
+  <div class="modal-sheet" style="max-height:88vh;max-height:88dvh;">
     <div class="modal-handle"></div>
     <div class="modal-title">🛒 Add Purchase</div>
 
@@ -2620,7 +2621,7 @@
 
 <!-- BILL VIEW MODAL -->
 <div class="modal-overlay" id="billViewModal" onclick="closeBillViewModal(event)">
-  <div class="modal-sheet" style="max-height:90vh;">
+  <div class="modal-sheet" style="max-height:90vh;max-height:90dvh;">
     <div class="modal-handle"></div>
     <div class="modal-title" id="billViewTitle">Bill / Receipt</div>
     <img id="billViewImg" class="bill-view-img" src="" alt="Bill" />
@@ -3600,7 +3601,29 @@ function clearTxnCategoryFilter() {
   _txnCategoryFilter=null;
   renderTxns();
 }
+let _txnPersonFilter=null;
+function renderTxnPersonChips() {
+  const row = document.getElementById('txnPersonFilterRow');
+  if (!row) return;
+  const members = state.familyMembers || [];
+  if (!members.length) { row.style.display='none'; return; }
+  row.style.display='';
+  row.innerHTML = `<button class="filter-chip ${!_txnPersonFilter?'active':''}" onclick="setPersonFilter(null,this)">👥 All</button>` +
+    members.map(m=>`<button class="filter-chip ${_txnPersonFilter===m.name?'active':''}" onclick="setPersonFilter('${m.name.replace(/'/g,"\\'")}',this)">${m.emoji||'👤'} ${m.name}</button>`).join('');
+}
+function setPersonFilter(name, el) {
+  _txnPersonFilter = name;
+  document.querySelectorAll('#txnPersonFilterRow .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderTxns();
+}
+function clearPersonFilter() {
+  _txnPersonFilter=null;
+  renderTxnPersonChips();
+  renderTxns();
+}
 function renderTxns() {
+  renderTxnPersonChips();
   const txns   = monthTxns('all');
   const income  = txns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense = txns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
@@ -3610,6 +3633,7 @@ function renderTxns() {
   const search = (document.getElementById('txnSearch')?.value||'').toLowerCase().trim();
   let filtered = state.txnFilter!=='all' ? txns.filter(t=>t.type===state.txnFilter) : txns;
   if (_txnCategoryFilter) filtered = filtered.filter(t=>t.category===_txnCategoryFilter);
+  if (_txnPersonFilter) filtered = filtered.filter(t=>t.spentFor===_txnPersonFilter);
   if (search) filtered = filtered.filter(t=>{
     const cat=getAllCats().find(c=>c.id===t.category);
     return (t.note&&t.note.toLowerCase().includes(search))||(cat&&cat.name.toLowerCase().includes(search));
@@ -3617,7 +3641,9 @@ function renderTxns() {
   filtered.sort((a,b)=>new Date(b.date)-new Date(a.date));
   const container = document.getElementById('txnListContainer');
   const catFilterCat = _txnCategoryFilter ? getAllCats().find(c=>c.id===_txnCategoryFilter) : null;
-  const banner = _txnCategoryFilter ? `<div class="cat-filter-banner"><span>Filtered by: ${catFilterCat?catFilterCat.emoji+' '+catFilterCat.name:_txnCategoryFilter}</span><button onclick="clearTxnCategoryFilter()">✕</button></div>` : '';
+  const personFilterM = _txnPersonFilter ? (state.familyMembers||[]).find(m=>m.name===_txnPersonFilter) : null;
+  const banner = (_txnCategoryFilter?`<div class="cat-filter-banner"><span>Filtered by: ${catFilterCat?catFilterCat.emoji+' '+catFilterCat.name:_txnCategoryFilter}</span><button onclick="clearTxnCategoryFilter()">✕</button></div>`:'')
+    + (_txnPersonFilter?`<div class="cat-filter-banner"><span>Person: ${personFilterM?personFilterM.emoji+' '+personFilterM.name:_txnPersonFilter}</span><button onclick="clearPersonFilter()">✕</button></div>`:'');
   if (!filtered.length) { container.innerHTML=banner+'<div class="empty-state"><div class="emoji">📭</div><p>No transactions found.</p></div>'; return; }
   const groups={};
   filtered.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t);});
