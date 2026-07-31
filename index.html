@@ -3690,7 +3690,7 @@ function renderCharts() {
     document.getElementById('pieLegend').innerHTML='<div class="no-data">No expenses this month</div>';
   } else {
     pieEl.style.display='';
-    pieWrap.style.height=Math.max(140,entries.length*36+16)+'px';
+    pieWrap.style.height=Math.max(100,entries.length*26+12)+'px';
     const catIds=entries.map(([id])=>id);
     const labels=entries.map(([id])=>{const c=getAllCats().find(x=>x.id===id);return c?`${c.emoji} ${c.name}`:id;});
     const data=entries.map(([,v])=>v);
@@ -3698,7 +3698,7 @@ function renderCharts() {
     const total=data.reduce((a,b)=>a+b,0);
     pieInst=new Chart(pieEl,{
       type:'bar',
-      data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:8,borderSkipped:false,barThickness:18}]},
+      data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:6,borderSkipped:false,barThickness:13}]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
         onClick:(evt,elements)=>{
           if(!elements.length) return;
@@ -3708,7 +3708,7 @@ function renderCharts() {
         plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.x)}`}}},
         scales:{
           x:{ticks:{color:textC,callback:v=>'₹'+Number(v).toLocaleString('en-IN')},grid:{color:gridC}},
-          y:{ticks:{color:textC,font:{size:11,weight:'600'}},grid:{display:false}}
+          y:{ticks:{color:textC,font:{size:10,weight:'600'}},grid:{display:false}}
         }}
     });
     document.getElementById('pieLegend').innerHTML=entries.map(([id,val],i)=>{
