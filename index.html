@@ -4701,7 +4701,9 @@ function markBillPaid(recurringId) {
   const today = new Date();
   const already = state.transactions.some(t=>t.recurringId===r.id&&new Date(t.date).getMonth()===today.getMonth()&&new Date(t.date).getFullYear()===today.getFullYear());
   if (already) { alert('Already recorded this month.'); return; }
-  const date = today.toISOString().split('T')[0];
+  const maxDay = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+  const day = Math.min(r.dayOfMonth, maxDay);
+  const date = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
   state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,subCategory:r.subCategory||'',note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
   save();
   renderDashboard();
