@@ -1898,6 +1898,11 @@
         <div><div class="settings-label">Apply Recurring</div><div class="settings-sub">Add this month's recurring transactions</div></div>
         <span style="color:var(--muted);">›</span>
       </div>
+      <div class="settings-row" onclick="backfillRecurring()" style="cursor:pointer;">
+        <span class="settings-icon">⏪</span>
+        <div><div class="settings-label">Backfill Recurring</div><div class="settings-sub">Add missed past months for all recurring transactions</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
     </div>
   </div>
 
@@ -4146,6 +4151,41 @@ function applyAllRecurring() {
     }
   });
   save(); alert(added>0?`${added} recurring transaction(s) added for ${MONTHS[state.currentMonth]}!`:'All recurring already applied this month.');
+}
+function backfillRecurring() {
+  if(!state.recurring.length) return alert('No recurring transactions set up.');
+  const today = new Date();
+  const input = prompt('Backfill from which month? Enter as MM-YYYY (e.g., 03-'+today.getFullYear()+')', '03-'+today.getFullYear());
+  if (!input) return;
+  const match = input.trim().match(/^(\d{1,2})-(\d{4})$/);
+  if (!match) return alert('Please enter the month as MM-YYYY, e.g. 03-2026.');
+  let m = parseInt(match[1],10)-1, y = parseInt(match[2],10);
+  if (m<0||m>11) return alert('Please enter a valid month (01-12).');
+  const endM = today.getMonth(), endY = today.getFullYear();
+  if (y>endY || (y===endY&&m>endM)) return alert('That month is in the future.');
+  let added=0;
+  while (y<endY || (y===endY&&m<=endM)) {
+    const maxDay = new Date(y, m+1, 0).getDate();
+    state.recurring.filter(r=>r.active).forEach(r=>{
+      const already = state.transactions.some(t=>t.recurringId===r.id&&new Date(t.date).getMonth()===m&&new Date(t.date).getFullYear()===y);
+      if (already) return;
+      const day = Math.min(r.dayOfMonth, maxDay);
+      const date = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      state.transactions.push({id:Date.now().toString()+Math.random().toString(36).slice(2),type:r.type,amount:r.amount,category:r.category,subCategory:r.subCategory||'',note:r.name,date,account:r.account,bank:r.bank||'',recurringId:r.id});
+      added++;
+    });
+    m++; if(m>11){m=0;y++;}
+  }
+  if (added>0) {
+    save();
+    alert(`${added} recurring transaction(s) backfilled!`);
+    const a=document.querySelector('.page.active');
+    if(a&&a.id==='page-home')  renderDashboard();
+    if(a&&a.id==='page-txns')  renderTxns();
+    if(a&&a.id==='page-charts')renderCharts();
+  } else {
+    alert('Nothing to backfill — those months already have entries.');
+  }
 }
 // Silently adds any recurring transaction whose due day (this real calendar month) has
 // arrived and hasn't been added yet. Runs once on app load so recurring transactions
