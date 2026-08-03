@@ -1751,6 +1751,10 @@
 <!-- ══════════ CHARTS ══════════ -->
 <div class="page page-pad" id="page-charts">
   <div class="chart-wrap">
+    <div class="chart-title">Budget Split (30/30/40) — <span id="budgetSplitLabel"></span></div>
+    <div id="budgetSplitRows"></div>
+  </div>
+  <div class="chart-wrap">
     <div class="chart-title">Expense Breakdown — <span id="pieMonthLabel"></span></div>
     <div class="chart-canvas-wrap" id="pieChartWrap"><canvas id="pieChart"></canvas></div>
     <div class="chart-legend" id="pieLegend"></div>
@@ -2796,6 +2800,7 @@ const EXPENSE_CATS = [
   {id:'health',        emoji:'💊', name:'Health'},
   {id:'housing',       emoji:'🏠', name:'Housing'},
   {id:'loan',          emoji:'🏦', name:'Loan'},
+  {id:'sip',           emoji:'📈', name:'Investment'},
   {id:'bills',         emoji:'⚡', name:'Bills'},
   {id:'entertainment', emoji:'🎬', name:'Fun'},
   {id:'other',         emoji:'💰', name:'Other'},
@@ -3674,7 +3679,39 @@ function renderTxns() {
 
 // ══════════════════ CHARTS ══════════════════
 let pieInst=null, barInst=null, trendInst=null, srInst=null;
+function renderBudgetSplit() {
+  document.getElementById('budgetSplitLabel').textContent = MONTHS[state.currentMonth]+' '+state.currentYear;
+  const mTxns = monthOnlyTxns('all');
+  const income = mTxns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const totalExpense = mTxns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const investActual = mTxns.filter(t=>t.type==='expense'&&t.category==='sip').reduce((s,t)=>s+t.amount,0);
+  const emiActual = mTxns.filter(t=>t.type==='expense'&&t.category==='loan').reduce((s,t)=>s+t.amount,0);
+  const otherExpenseActual = Math.max(0, totalExpense - investActual - emiActual);
+  const el = document.getElementById('budgetSplitRows');
+  if (income <= 0) {
+    el.innerHTML = '<div class="no-data">Add this month\'s income to see your budget split.</div>';
+    return;
+  }
+  const rows = [
+    {label:'Invest',   emoji:'📈', pct:30, actual:investActual},
+    {label:'EMI',      emoji:'🏦', pct:30, actual:emiActual},
+    {label:'Expenses', emoji:'🧾', pct:40, actual:otherExpenseActual},
+  ];
+  el.innerHTML = rows.map(r=>{
+    const ideal = income * r.pct / 100;
+    const pctUsed = ideal>0 ? Math.min(130,(r.actual/ideal)*100) : 0;
+    const color = pctUsed>110 ? '#F87171' : pctUsed>90 ? '#FBBF24' : '#34D399';
+    return `<div class="alloc-item">
+      <div class="alloc-header">
+        <span class="alloc-name">${r.emoji} ${r.label} <span style="font-weight:400;color:var(--muted);">(${r.pct}%)</span></span>
+        <span class="alloc-amounts">${fmt(r.actual)} / ${fmt(ideal)}</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pctUsed}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+}
 function renderCharts() {
+  renderBudgetSplit();
   const txns  = monthTxns('all');
   const dark  = state.darkMode;
   const textC = dark?'#9990c8':'#6b6490';
