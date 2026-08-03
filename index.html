@@ -2146,7 +2146,10 @@
     <div id="parkedLoanFields" style="display:none;">
       <div class="form-group">
         <label class="form-label">Interest Rate (% per year)</label>
-        <input type="number" class="form-input" id="parkedInterestPct" placeholder="e.g., 12" inputmode="decimal" step="0.01" />
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="number" class="form-input" id="parkedInterestPct" placeholder="e.g., 12" inputmode="decimal" step="0.01" style="flex:1;" oninput="updateParkedMonthlyPreview()" />
+          <div id="parkedMonthlyPreview" style="display:none;flex-shrink:0;font-size:12px;font-weight:700;color:var(--primary);white-space:nowrap;">₹0/mo</div>
+        </div>
       </div>
       <div class="form-group" id="parkedCompoundingField" style="display:none;">
         <label class="form-label">Compounding</label>
@@ -2165,7 +2168,7 @@
 
     <div class="form-group">
       <label class="form-label">Amount (₹)</label>
-      <input type="number" class="form-input" id="parkedAmount" placeholder="0" inputmode="decimal" />
+      <input type="number" class="form-input" id="parkedAmount" placeholder="0" inputmode="decimal" oninput="updateParkedMonthlyPreview()" />
     </div>
 
     <!-- Date row: start date alone, OR start+close side-by-side for FD/loan-on-edit -->
@@ -5819,7 +5822,21 @@ function openParkedModal(id) {
   _parkedReceiptName = (p && p.receiptName) ? p.receiptName : null;
   updateParkedReceiptUI();
   renderParkedTypeGrid();
+  updateParkedMonthlyPreview();
   document.getElementById('parkedModal').classList.add('open');
+}
+function updateParkedMonthlyPreview() {
+  const el = document.getElementById('parkedMonthlyPreview');
+  if (!el) return;
+  const pct = parseFloat(document.getElementById('parkedInterestPct').value) || 0;
+  const amt = parseFloat(document.getElementById('parkedAmount').value) || 0;
+  if (pct > 0 && amt > 0) {
+    const monthly = amt * (pct / 100) / 12;
+    el.textContent = fmt(monthly) + '/mo';
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
 }
 function closeParkedModal(e) {
   if (!e || e.target === document.getElementById('parkedModal'))
