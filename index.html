@@ -2692,21 +2692,14 @@ function signOutGoogle() {
   auth.signOut();
 }
 
-// Firestore rejects arrays that directly contain another array ("nested entity").
-// Older/imported data can end up with this shape, so wrap any nested array as
-// {__arr: [...]} before writing, and unwrap it back on read — keeps data intact
-// without needing to know which field caused it.
-function sanitizeForFirestore(v) {
-  if (Array.isArray(v)) {
-    return v.map(item => Array.isArray(item) ? {__arr: sanitizeForFirestore(item)} : sanitizeForFirestore(item));
-  }
-  if (v && typeof v === 'object') {
-    const out = {};
-    for (const k in v) out[k] = v[k] === undefined ? null : sanitizeForFirestore(v[k]);
-    return out;
-  }
-  return v === undefined ? null : v;
-}
+// The whole app state is written as a single JSON STRING in one field rather than
+// as nested objects/arrays. The backend rejects arrays that contain entities
+// ("Property array contains an invalid nested entity"), and every collection here
+// (transactions, purchases, parkedMoney, …) is an array of objects, so a
+// structured write can never succeed. A string has no structure to reject, works
+// regardless of database mode, and this app always reads the entire document at
+// once — it never queries individual fields — so nothing is lost.
+const CLOUD_SCHEMA = 2;
 function unsanitizeFromFirestore(v) {
   if (Array.isArray(v)) return v.map(unsanitizeFromFirestore);
   if (v && typeof v === 'object') {
@@ -2716,6 +2709,15 @@ function unsanitizeFromFirestore(v) {
     return out;
   }
   return v;
+}
+// Accepts both the v2 JSON-string document and any older structured document.
+function readCloudDoc(raw) {
+  if (!raw) return {};
+  if (typeof raw.blob === 'string') {
+    try { return JSON.parse(raw.blob) || {}; }
+    catch (e) { console.error('Cloud blob parse error:', e); return {}; }
+  }
+  return unsanitizeFromFirestore(raw);
 }
 
 function startCloudSync(uid) {
@@ -2727,7 +2729,7 @@ function startCloudSync(uid) {
       return;
     }
     isSyncingFromCloud = true;
-    const d = unsanitizeFromFirestore(doc.data());
+    const d = readCloudDoc(doc.data());
     // ── LAYER 2: Universal empty-overwrite guard ──
     // For every collection, only accept the cloud value if the cloud actually has data,
     // OR our local copy is also empty. This prevents an empty cloud from wiping local data.
@@ -2795,7 +2797,7 @@ function saveToCloud() {
   if (!currentUser || isSyncingFromCloud) return;
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(() => {
-    db.collection('users').doc(currentUser.uid).set(sanitizeForFirestore({
+    const blob = JSON.stringify({
       transactions: state.transactions,
       allocations:  state.allocations,
       recurring:    state.recurring,
@@ -2810,7 +2812,21 @@ function saveToCloud() {
       profile3Name:    state.profile3Name,
       creditCards:     state.creditCards,
       investments:     (typeof investments !== 'undefined' ? investments : []),
-    })).then(() => { _cloudSyncError = null; renderBackupStatus(); })
+    });
+    // A Firestore document is capped at ~1 MiB. Bill/receipt images are stored
+    // inline as base64, so a large library can push past it — surface that
+    // clearly instead of letting the write fail with an opaque backend error.
+    const bytes = new Blob([blob]).size;
+    if (bytes > 950000) {
+      _cloudSyncError = `Data too large to sync (${(bytes/1048576).toFixed(2)} MB of 1 MB). Remove some bill/receipt images from Purchases or Parked Money.`;
+      renderBackupStatus();
+      return;
+    }
+    db.collection('users').doc(currentUser.uid).set({
+      blob,
+      schema: CLOUD_SCHEMA,
+      updatedAt: Date.now(),
+    }).then(() => { _cloudSyncError = null; renderBackupStatus(); })
       .catch(e => { console.error('Cloud save error:', e); _cloudSyncError = e.message || String(e); renderBackupStatus(); });
   }, 600);
 }
