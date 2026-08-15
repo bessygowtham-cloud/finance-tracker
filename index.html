@@ -2671,6 +2671,7 @@ let currentUser        = null;
 let unsubscribeSync    = null;
 let cloudSaveTimer     = null;
 let isSyncingFromCloud = false;
+let _cloudSyncError    = null;
 
 auth.onAuthStateChanged(user => {
   currentUser = user;
@@ -2754,8 +2755,14 @@ function startCloudSync(uid) {
       if (active.id==='page-investments') renderInvestments();
       if (active.id==='page-parked')      renderParked();
     }
+    _cloudSyncError = null;
     isSyncingFromCloud = false;
-  }, err => console.error('Sync error:', err));
+    renderBackupStatus();
+  }, err => {
+    console.error('Sync error:', err);
+    _cloudSyncError = err.message || String(err);
+    renderBackupStatus();
+  });
 }
 
 function saveToCloud() {
@@ -2777,7 +2784,8 @@ function saveToCloud() {
       profile3Name:    state.profile3Name,
       creditCards:     state.creditCards,
       investments:     (typeof investments !== 'undefined' ? investments : []),
-    }).catch(e => console.error('Cloud save error:', e));
+    }).then(() => { _cloudSyncError = null; renderBackupStatus(); })
+      .catch(e => { console.error('Cloud save error:', e); _cloudSyncError = e.message || String(e); renderBackupStatus(); });
   }, 600);
 }
 
@@ -3868,8 +3876,10 @@ function renderBackupStatus() {
   const fileEl  = document.getElementById('backupStatusFile');
   if (!cloudEl) return;
   // Cloud
-  if (currentUser) {
-    cloudEl.innerHTML = `☁️ <span style="color:#059669;">Cloud sync: ACTIVE</span> · Signed in as ${currentUser.email || currentUser.displayName || 'Google account'}`;
+  if (currentUser && _cloudSyncError) {
+    cloudEl.innerHTML = `⚠️ <span style="color:var(--expense);">Cloud sync error:</span> ${escapeHtml(_cloudSyncError)} <button onclick="startCloudSync(currentUser.uid)" style="margin-left:4px;background:none;border:none;color:var(--primary);font-weight:700;cursor:pointer;text-decoration:underline;">Retry</button>`;
+  } else if (currentUser) {
+    cloudEl.innerHTML = `☁️ <span style="color:#059669;">Cloud sync: ACTIVE</span> · Signed in as ${currentUser.email || currentUser.displayName || 'Google account'} <button onclick="startCloudSync(currentUser.uid)" style="margin-left:4px;background:none;border:none;color:var(--primary);font-weight:700;cursor:pointer;text-decoration:underline;">Sync now</button>`;
   } else {
     cloudEl.innerHTML = `⚠️ <span style="color:var(--expense);">Cloud sync: OFF</span> — Tap "☁️ Sign in" at the top right to enable automatic cloud backup`;
   }
