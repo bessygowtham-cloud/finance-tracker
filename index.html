@@ -2692,6 +2692,32 @@ function signOutGoogle() {
   auth.signOut();
 }
 
+// Firestore rejects arrays that directly contain another array ("nested entity").
+// Older/imported data can end up with this shape, so wrap any nested array as
+// {__arr: [...]} before writing, and unwrap it back on read — keeps data intact
+// without needing to know which field caused it.
+function sanitizeForFirestore(v) {
+  if (Array.isArray(v)) {
+    return v.map(item => Array.isArray(item) ? {__arr: sanitizeForFirestore(item)} : sanitizeForFirestore(item));
+  }
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const k in v) out[k] = v[k] === undefined ? null : sanitizeForFirestore(v[k]);
+    return out;
+  }
+  return v === undefined ? null : v;
+}
+function unsanitizeFromFirestore(v) {
+  if (Array.isArray(v)) return v.map(unsanitizeFromFirestore);
+  if (v && typeof v === 'object') {
+    if ('__arr' in v && Object.keys(v).length === 1) return unsanitizeFromFirestore(v.__arr);
+    const out = {};
+    for (const k in v) out[k] = unsanitizeFromFirestore(v[k]);
+    return out;
+  }
+  return v;
+}
+
 function startCloudSync(uid) {
   if (unsubscribeSync) unsubscribeSync();
   unsubscribeSync = db.collection('users').doc(uid).onSnapshot(doc => {
@@ -2701,7 +2727,7 @@ function startCloudSync(uid) {
       return;
     }
     isSyncingFromCloud = true;
-    const d = doc.data();
+    const d = unsanitizeFromFirestore(doc.data());
     // ── LAYER 2: Universal empty-overwrite guard ──
     // For every collection, only accept the cloud value if the cloud actually has data,
     // OR our local copy is also empty. This prevents an empty cloud from wiping local data.
@@ -2769,7 +2795,7 @@ function saveToCloud() {
   if (!currentUser || isSyncingFromCloud) return;
   clearTimeout(cloudSaveTimer);
   cloudSaveTimer = setTimeout(() => {
-    db.collection('users').doc(currentUser.uid).set({
+    db.collection('users').doc(currentUser.uid).set(sanitizeForFirestore({
       transactions: state.transactions,
       allocations:  state.allocations,
       recurring:    state.recurring,
@@ -2784,7 +2810,7 @@ function saveToCloud() {
       profile3Name:    state.profile3Name,
       creditCards:     state.creditCards,
       investments:     (typeof investments !== 'undefined' ? investments : []),
-    }).then(() => { _cloudSyncError = null; renderBackupStatus(); })
+    })).then(() => { _cloudSyncError = null; renderBackupStatus(); })
       .catch(e => { console.error('Cloud save error:', e); _cloudSyncError = e.message || String(e); renderBackupStatus(); });
   }, 600);
 }
