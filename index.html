@@ -3693,23 +3693,20 @@ function renderBudgetSplit() {
   const emiActual = mTxns.filter(t=>t.type==='expense'&&t.category==='loan').reduce((s,t)=>s+t.amount,0);
   const otherExpenseActual = Math.max(0, totalExpense - investActual - emiActual);
   const el = document.getElementById('budgetSplitRows');
-  if (income <= 0) {
-    el.innerHTML = '<div class="no-data">Add this month\'s income to see your budget split.</div>';
-    return;
-  }
   const rows = [
     {label:'Invest',   emoji:'📈', pct:30, actual:investActual},
     {label:'EMI',      emoji:'🏦', pct:30, actual:emiActual},
     {label:'Expenses', emoji:'🧾', pct:40, actual:otherExpenseActual},
   ];
-  el.innerHTML = rows.map(r=>{
+  const noIncomeNote = income<=0 ? '<div class="no-data" style="margin-bottom:10px;">No income logged this month — showing actual amounts only.</div>' : '';
+  el.innerHTML = noIncomeNote + rows.map(r=>{
     const ideal = income * r.pct / 100;
-    const pctUsed = ideal>0 ? Math.min(130,(r.actual/ideal)*100) : 0;
+    const pctUsed = ideal>0 ? Math.min(130,(r.actual/ideal)*100) : (r.actual>0 ? 130 : 0);
     const color = pctUsed>110 ? '#F87171' : pctUsed>90 ? '#FBBF24' : '#34D399';
     return `<div class="alloc-item">
       <div class="alloc-header">
         <span class="alloc-name">${r.emoji} ${r.label} <span style="font-weight:400;color:var(--muted);">(${r.pct}%)</span></span>
-        <span class="alloc-amounts">${fmt(r.actual)} / ${fmt(ideal)}</span>
+        <span class="alloc-amounts">${fmt(r.actual)}${income>0?' / '+fmt(ideal):''}</span>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${pctUsed}%;background:${color}"></div></div>
     </div>`;
