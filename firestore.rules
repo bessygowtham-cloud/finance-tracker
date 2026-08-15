@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Each signed-in user can only read/write their own document,
+    // keyed by their Firebase Auth uid — matches db.collection('users').doc(uid)
+    // in index.html's cloud sync code.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

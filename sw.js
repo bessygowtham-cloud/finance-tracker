@@ -1,4 +1,4 @@
-const CACHE = 'finance-tracker-v4';
+const CACHE = 'finance-tracker-v5';
 const ASSETS = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -15,12 +15,19 @@ self.addEventListener('activate', e => {
 
 // Network-first: always serve the latest deploy when online; fall back to
 // the cache (kept fresh from the last successful fetch) only when offline.
+// Only GET http(s) requests are cacheable — the Cache API rejects POST
+// requests (e.g. Firestore's streaming channel) and chrome-extension:// URLs,
+// so those are passed straight through without touching the cache.
 self.addEventListener('fetch', e => {
+  const req = e.request;
+  const cacheable = req.method === 'GET' && req.url.startsWith('http');
   e.respondWith(
-    fetch(e.request, {cache: 'no-store'}).then(res => {
-      const resClone = res.clone();
-      caches.open(CACHE).then(c => c.put(e.request, resClone));
+    fetch(req, {cache: 'no-store'}).then(res => {
+      if (cacheable) {
+        const resClone = res.clone();
+        caches.open(CACHE).then(c => c.put(req, resClone)).catch(() => {});
+      }
       return res;
-    }).catch(() => caches.match(e.request))
+    }).catch(() => cacheable ? caches.match(req) : fetch(req))
   );
 });
