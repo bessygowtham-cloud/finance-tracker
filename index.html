@@ -2548,7 +2548,8 @@
     <!-- Category -->
     <div class="form-group">
       <label class="form-label">Category</label>
-      <div class="cat-grid" id="editCatGrid"></div>
+      <!-- cat-row (not cat-grid) so Edit matches the Add page's horizontal pills -->
+      <div class="cat-row" id="editCatGrid"></div>
     </div>
 
     <!-- Sub Category -->
@@ -2986,7 +2987,7 @@ function load() {
     state.goals          = p.goals          || [];
     state.subCategories  = p.subCategories  || { water:['Drinking','Metro'], food:[], transport:[], health:[], bills:[], loan:['Home loan','Personal loan'] };
     state.familyMembers  = p.familyMembers  || [];
-    state.bankTags       = p.bankTags       || ['Standard Chartered', 'Axis Bank', 'HDFC'];
+    state.bankTags       = p.bankTags       || ['SC', 'Axis Bank', 'HDFC'];
     state.creditCards    = p.creditCards    || ['HDFC', 'Axis', 'ICICI'];
     state.purchases      = p.purchases      || [];
     state.reminders      = p.reminders      || [];
@@ -3099,7 +3100,7 @@ function applySnapshot(s) {
   state.goals         = s.goals         || [];
   state.subCategories = s.subCategories || { water:['Drinking','Metro'], food:[], transport:[], health:[], bills:[], loan:['Home loan','Personal loan'] };
   state.familyMembers = s.familyMembers || [];
-  state.bankTags      = s.bankTags      || ['Standard Chartered', 'Axis Bank', 'HDFC'];
+  state.bankTags      = s.bankTags      || ['SC', 'Axis Bank', 'HDFC'];
   state.creditCards   = s.creditCards   || ['HDFC', 'Axis', 'ICICI'];
   state.purchases     = s.purchases     || [];
   state.reminders     = s.reminders     || [];
