@@ -181,6 +181,30 @@
       letter-spacing: .1px;
     }
     .month-pill:active { background: rgba(99,102,241,0.18); }
+    /* Keep the month pill on one line inside the scrolling filter row */
+    .filter-row .month-pill { flex-shrink: 0; white-space: nowrap; align-self: center; }
+    .filter-row .filter-chip { flex-shrink: 0; }
+    /* Filter icon in the History filter row; dot marks active category/sub/person filters */
+    .filter-icon-btn {
+      position: relative; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; padding: 0;
+      border-radius: 50%; cursor: pointer;
+      background: var(--input-bg);
+      border: 1.5px solid var(--input-border);
+      color: var(--muted);
+    }
+    .filter-icon-btn svg { width: 15px; height: 15px; }
+    .filter-icon-btn.active {
+      background: rgba(124,110,246,0.85);
+      border-color: rgba(255,255,255,0.3);
+      color: #fff;
+    }
+    .filter-icon-btn.active::after {
+      content: ''; position: absolute; top: -1px; right: -1px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #F87171; border: 1.5px solid var(--modal-bg);
+    }
 
     /* Floating profile pill — bottom-left, above bottom nav */
     .floating-profile-pill {
@@ -1760,8 +1784,11 @@
     <button class="filter-chip active" onclick="setFilter('all',this)">All</button>
     <button class="filter-chip" onclick="setFilter('income',this)">Income</button>
     <button class="filter-chip" onclick="setFilter('expense',this)">Expense</button>
+    <button class="month-pill" id="txnMonthPill" onclick="openMonthPicker()">All Time ▾</button>
+    <button class="filter-icon-btn" id="txnFilterBtn" onclick="openTxnFilterModal()" aria-label="More filters">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+    </button>
   </div>
-  <div class="filter-row" id="txnPersonFilterRow" style="display:none;"></div>
   <div id="txnListContainer"></div>
 </div>
 
@@ -2304,6 +2331,30 @@
     </div>
     <button class="month-option" id="allTimeOption" onclick="selectAllTime()" style="width:100%;margin-bottom:10px;">🗓️ All Time</button>
     <div class="month-grid" id="monthGrid"></div>
+  </div>
+</div>
+
+<!-- HISTORY FILTERS MODAL -->
+<div class="modal-overlay" id="txnFilterModal" onclick="closeTxnFilterModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Filters</div>
+    <div class="form-group">
+      <label class="form-label">Category</label>
+      <div class="sub-chips-wrap" id="txnFilterCatChips"></div>
+    </div>
+    <div class="form-group" id="txnFilterSubCatGroup">
+      <label class="form-label">Sub Category</label>
+      <div class="sub-chips-wrap" id="txnFilterSubCatChips"></div>
+    </div>
+    <div class="form-group" id="txnFilterPersonGroup">
+      <label class="form-label">Spent For</label>
+      <div class="sub-chips-wrap" id="txnFilterPersonChips"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button onclick="clearAllTxnFilters()" style="flex:1;background:rgba(239,68,68,0.1);border:1.5px solid rgba(239,68,68,0.35);color:var(--expense);padding:13px 20px;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;">Clear All</button>
+      <button class="btn-primary" style="flex:1;margin-top:0;" onclick="closeTxnFilterModal()">Done</button>
+    </div>
   </div>
 </div>
 
@@ -3238,6 +3289,8 @@ function accountBalance(id) {
 }
 
 // ══════════════════ NAVIGATION ══════════════════
+// History renders its own month pill inside the filter row instead
+const HEADER_MONTH_PILL_PAGES = ['home','charts'];
 const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings',purchases:'My Purchases',investments:'Investments',parked:'Parked Money'};
 const PARKED_TYPES = [
   {id:'loan',        emoji:'🤝', name:'Loan Given',  color:'#60A5FA'},
@@ -3254,7 +3307,7 @@ function navigate(page) {
   const nb = document.getElementById('nav-'+page);
   if (nb) nb.classList.add('active');
   document.getElementById('pageTitle').textContent = PAGE_TITLES[page]||page;
-  document.getElementById('monthPill').style.display = ['home','txns','charts'].includes(page)?'':'none';
+  document.getElementById('monthPill').style.display = HEADER_MONTH_PILL_PAGES.includes(page)?'':'none';
   if (page==='purchases') renderPurchases();
   if (page==='investments') { renderInvestments(); }
   if (page==='parked') { renderParked(); if (!_goldRateCache) refreshGoldRate(false).then(()=>renderParked()); }
@@ -3262,7 +3315,7 @@ function navigate(page) {
   updateProfilePill(page);
   // Show month picker in header only on month-based pages
   const monthPill = document.getElementById('monthPill');
-  if (monthPill) monthPill.style.display = ['home','txns','charts'].includes(page) ? '' : 'none';
+  if (monthPill) monthPill.style.display = HEADER_MONTH_PILL_PAGES.includes(page) ? '' : 'none';
   const shc = document.getElementById('settingsHeaderControls');
   if (page === 'settings') shc.classList.add('visible'); else shc.classList.remove('visible');
   // Close any open dropdown
@@ -3315,8 +3368,11 @@ function updateMonthPill() {
     mp.textContent = label + ' ▾';
     const active = document.querySelector('.page.active');
     const pg = active ? active.id.replace('page-','') : 'home';
-    mp.style.display = ['home','txns','charts'].includes(pg) ? '' : 'none';
+    // History has its own pill in the filter row, so the header one is hidden there
+    mp.style.display = HEADER_MONTH_PILL_PAGES.includes(pg) ? '' : 'none';
   }
+  const tmp = document.getElementById('txnMonthPill');
+  if (tmp) tmp.textContent = label + ' ▾';
   // Show "Viewing past month" warning only when browsing a specific non-current month
   const today = new Date();
   const isStale = !state.viewAllTime && (state.currentMonth !== today.getMonth() || state.currentYear !== today.getFullYear());
@@ -3760,28 +3816,82 @@ function clearTxnCategoryFilter() {
   renderTxns();
 }
 let _txnPersonFilter=null;
-function renderTxnPersonChips() {
-  const row = document.getElementById('txnPersonFilterRow');
-  if (!row) return;
+let _txnSubCategoryFilter=null;
+
+// ── History filter sheet: category, sub category and spent-for ──
+function openTxnFilterModal() {
+  renderTxnFilterModal();
+  document.getElementById('txnFilterModal').classList.add('open');
+}
+function closeTxnFilterModal(e) {
+  if (!e || e.target === document.getElementById('txnFilterModal'))
+    document.getElementById('txnFilterModal').classList.remove('open');
+}
+function renderTxnFilterModal() {
+  const chip = (label, selected, onclick) =>
+    `<button class="sub-chip ${selected?'selected':''}" onclick="${onclick}">${label}</button>`;
+
+  // Only offer categories that actually appear in the current month scope
+  const scoped = monthTxns('all');
+  const usedCats = [...new Set(scoped.map(t=>t.category).filter(Boolean))];
+  const catEl = document.getElementById('txnFilterCatChips');
+  catEl.innerHTML = chip('All', !_txnCategoryFilter, `setTxnCategoryFilter(null)`) +
+    usedCats.map(id => {
+      const c = getAllCats().find(x=>x.id===id) || {emoji:'🏷️', name:id};
+      return chip(`${c.emoji} ${escapeHtml(c.name)}`, _txnCategoryFilter===id, `setTxnCategoryFilter('${id}')`);
+    }).join('');
+
+  // Sub categories for the chosen category (or across everything when none chosen)
+  const subPool = scoped.filter(t => !_txnCategoryFilter || t.category===_txnCategoryFilter);
+  const usedSubs = [...new Set(subPool.map(t=>t.subCategory).filter(Boolean))];
+  const subGroup = document.getElementById('txnFilterSubCatGroup');
+  if (!usedSubs.length) { subGroup.style.display='none'; }
+  else {
+    subGroup.style.display='';
+    document.getElementById('txnFilterSubCatChips').innerHTML =
+      chip('All', !_txnSubCategoryFilter, `setTxnSubCategoryFilter(null)`) +
+      usedSubs.map(s => chip(escapeHtml(s), _txnSubCategoryFilter===s, `setTxnSubCategoryFilter('${s.replace(/'/g,"\\'")}')`)).join('');
+  }
+
   const members = state.familyMembers || [];
-  if (!members.length) { row.style.display='none'; return; }
-  row.style.display='';
-  row.innerHTML = `<button class="filter-chip ${!_txnPersonFilter?'active':''}" onclick="setPersonFilter(null,this)">All</button>` +
-    members.map(m=>`<button class="filter-chip ${_txnPersonFilter===m.name?'active':''}" onclick="setPersonFilter('${m.name.replace(/'/g,"\\'")}',this)">${escapeHtml(m.name)}</button>`).join('');
+  const personGroup = document.getElementById('txnFilterPersonGroup');
+  if (!members.length) { personGroup.style.display='none'; }
+  else {
+    personGroup.style.display='';
+    document.getElementById('txnFilterPersonChips').innerHTML =
+      chip('All', !_txnPersonFilter, `setPersonFilter(null)`) +
+      members.map(m => chip(escapeHtml(m.name), _txnPersonFilter===m.name, `setPersonFilter('${m.name.replace(/'/g,"\\'")}')`)).join('');
+  }
 }
-function setPersonFilter(name, el) {
+function setTxnCategoryFilter(id) {
+  _txnCategoryFilter = id;
+  _txnSubCategoryFilter = null;   // sub categories belong to a category
+  renderTxnFilterModal(); renderTxns();
+}
+function setTxnSubCategoryFilter(name) {
+  _txnSubCategoryFilter = name;
+  renderTxnFilterModal(); renderTxns();
+}
+function setPersonFilter(name) {
   _txnPersonFilter = name;
-  document.querySelectorAll('#txnPersonFilterRow .filter-chip').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
-  renderTxns();
+  renderTxnFilterModal(); renderTxns();
 }
-function clearPersonFilter() {
-  _txnPersonFilter=null;
-  renderTxnPersonChips();
-  renderTxns();
+function clearPersonFilter() { setPersonFilter(null); }
+function clearTxnSubCategoryFilter() { setTxnSubCategoryFilter(null); }
+function clearAllTxnFilters() {
+  _txnCategoryFilter = null;
+  _txnSubCategoryFilter = null;
+  _txnPersonFilter = null;
+  renderTxnFilterModal(); renderTxns();
+}
+// Highlight the filter icon whenever one of the sheet's filters is on
+function updateTxnFilterBtn() {
+  const btn = document.getElementById('txnFilterBtn');
+  if (btn) btn.classList.toggle('active', !!(_txnCategoryFilter || _txnSubCategoryFilter || _txnPersonFilter));
 }
 function renderTxns() {
-  renderTxnPersonChips();
+  updateTxnFilterBtn();
+  updateMonthPill();
   const txns   = monthTxns('all');
   const income  = txns.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense = txns.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
@@ -3791,6 +3901,7 @@ function renderTxns() {
   const search = (document.getElementById('txnSearch')?.value||'').toLowerCase().trim();
   let filtered = state.txnFilter!=='all' ? txns.filter(t=>t.type===state.txnFilter) : txns;
   if (_txnCategoryFilter) filtered = filtered.filter(t=>t.category===_txnCategoryFilter);
+  if (_txnSubCategoryFilter) filtered = filtered.filter(t=>t.subCategory===_txnSubCategoryFilter);
   if (_txnPersonFilter) filtered = filtered.filter(t=>t.spentFor===_txnPersonFilter);
   if (search) filtered = filtered.filter(t=>{
     const cat=getAllCats().find(c=>c.id===t.category);
@@ -3800,9 +3911,10 @@ function renderTxns() {
   const container = document.getElementById('txnListContainer');
   const catFilterCat = _txnCategoryFilter ? getAllCats().find(c=>c.id===_txnCategoryFilter) : null;
   const personFilterM = _txnPersonFilter ? (state.familyMembers||[]).find(m=>m.name===_txnPersonFilter) : null;
-  const banner = (_txnCategoryFilter?`<div class="cat-filter-banner"><span>Filtered by: ${catFilterCat?catFilterCat.emoji+' '+catFilterCat.name:_txnCategoryFilter}</span><button onclick="clearTxnCategoryFilter()">✕</button></div>`:'')
-    + (_txnPersonFilter?`<div class="cat-filter-banner"><span>Person: ${personFilterM?personFilterM.emoji+' '+personFilterM.name:_txnPersonFilter}</span><button onclick="clearPersonFilter()">✕</button></div>`:'');
-  const anyFilterActive = state.txnFilter!=='all' || !!_txnCategoryFilter || !!_txnPersonFilter || !!search;
+  const banner = (_txnCategoryFilter?`<div class="cat-filter-banner"><span>Filtered by: ${catFilterCat?catFilterCat.emoji+' '+escapeHtml(catFilterCat.name):escapeHtml(_txnCategoryFilter)}</span><button onclick="clearTxnCategoryFilter()">✕</button></div>`:'')
+    + (_txnSubCategoryFilter?`<div class="cat-filter-banner"><span>Sub: ${escapeHtml(_txnSubCategoryFilter)}</span><button onclick="clearTxnSubCategoryFilter()">✕</button></div>`:'')
+    + (_txnPersonFilter?`<div class="cat-filter-banner"><span>Person: ${escapeHtml(_txnPersonFilter)}</span><button onclick="clearPersonFilter()">✕</button></div>`:'');
+  const anyFilterActive = state.txnFilter!=='all' || !!_txnCategoryFilter || !!_txnSubCategoryFilter || !!_txnPersonFilter || !!search;
   let totalLine = '';
   if (anyFilterActive) {
     const filteredExpense = filtered.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
