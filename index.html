@@ -1925,9 +1925,9 @@
         <div><div class="settings-label">Compress Images</div><div class="settings-sub">Shrink saved bill/receipt photos so they sync</div></div>
         <span style="color:var(--muted);">›</span>
       </div>
-      <div class="settings-row" onclick="recoverSubCategories()" style="cursor:pointer;">
-        <span class="settings-icon">🔖</span>
-        <div><div class="settings-label">Recover Sub Categories</div><div class="settings-sub">Restore ones lost from backups and past entries</div></div>
+      <div class="settings-row" onclick="restoreLostSettings()" style="cursor:pointer;">
+        <span class="settings-icon">🩹</span>
+        <div><div class="settings-label">Restore Lost Settings</div><div class="settings-sub">Bring back sub categories, names, banks &amp; budgets from backups</div></div>
         <span style="color:var(--muted);">›</span>
       </div>
     </div>
@@ -2821,7 +2821,11 @@ function startCloudSync(uid) {
     state.allocations   = mergeObj(d.allocations,  state.allocations, {});
     state.customCats    = mergeObj(d.customCats,   state.customCats, { expense: [], income: [] });
     state.subCategories = mergeObj(d.subCategories,state.subCategories, { water:['Drinking','Metro'], food:[], transport:[], health:[], bills:[], loan:['Home loan','Personal loan'] });
-    state.profile3Name  = d.profile3Name || state.profile3Name || 'Other Person';
+    // Never let another device's untouched default replace a name set here.
+    const DEFAULT_P3 = 'Other Person';
+    const realName = v => v && v !== DEFAULT_P3 ? v : null;
+    if (realName(state.profile3Name) && !realName(d.profile3Name)) localHadMore = true;
+    state.profile3Name = realName(d.profile3Name) || realName(state.profile3Name) || DEFAULT_P3;
 
     // If local had data the cloud was missing, push our merged copy back up so cloud catches up
     if (localHadMore) setTimeout(saveToCloud, 800);
@@ -2990,10 +2994,13 @@ function load() {
     state.profile3Name   = p.profile3Name   || 'Jayanthi';
     state.darkMode       = p.darkMode       || false;
   }
-  // One-time migration: rename old default "Other Person" → "Jayanthi"
-  if (state.profile3Name === 'Other Person' && !localStorage.getItem('p3RenamedJayanthi')) {
+  // Rename old default "Other Person" → "Jayanthi". Re-run under a new flag:
+  // a sync overwrote the custom name with another device's default after the
+  // original migration had already marked itself done.
+  if (state.profile3Name === 'Other Person' && !localStorage.getItem('p3RenamedJayanthi2')) {
     state.profile3Name = 'Jayanthi';
     localStorage.setItem('p3RenamedJayanthi', '1');
+    localStorage.setItem('p3RenamedJayanthi2', '1');
   }
   // Ensure new sub-category buckets exist with default values for existing users
   if (!state.subCategories) state.subCategories = {};
@@ -4696,6 +4703,7 @@ function recoverSubCategories(silent) {
   [...(state.transactions || []), ...(state.recurring || [])].forEach(t => {
     if (t && t.subCategory) add(t.category, t.subCategory);
   });
+  recoverSubCategories.lastRecovered = recovered;
   if (recovered) {
     save();
     renderSubCatSettings();
@@ -4705,6 +4713,79 @@ function recoverSubCategories(silent) {
     alert(recovered ? `Recovered ${recovered} sub category(s).` : 'Nothing to recover — none were missing.');
   }
   return recovered;
+}
+// Additively restores configuration an earlier sync overwrote, using the rolling
+// local backups. It only ever ADDS things back — it never deletes, and never
+// touches transactions, purchases, parked money or investments.
+function restoreLostSettings(silent) {
+  const backups = getBackups();
+  const found = new Set();
+  let changed = 0;
+  const bump = what => { changed++; found.add(what); };
+
+  // Profile 3 name — only if ours is still the untouched default
+  if (!state.profile3Name || state.profile3Name === 'Other Person') {
+    for (const b of backups) {
+      const n = b && b.data && b.data.profile3Name;
+      if (n && n !== 'Other Person') { state.profile3Name = n; bump('profile name'); break; }
+    }
+  }
+  // Simple lists, matched by a key so duplicates aren't created
+  const unionList = (field, keyFn, label, normalize) => {
+    if (!Array.isArray(state[field])) state[field] = [];
+    const cur = state[field];
+    const seen = new Set(cur.map(keyFn));
+    backups.forEach(b => {
+      const old = b && b.data && b.data[field];
+      (Array.isArray(old) ? old : []).forEach(raw => {
+        const it = normalize ? normalize(raw) : raw;
+        const k = keyFn(it);
+        if (k == null || k === '' || seen.has(k)) return;
+        cur.push(it); seen.add(k); bump(label);
+      });
+    });
+  };
+  unionList('familyMembers', m => m && m.name, 'family members');
+  // Apply the Standard Chartered → SC rename so old backups don't reintroduce it
+  unionList('bankTags', v => v, 'banks', v => (v === 'Standard Chartered' ? 'SC' : v));
+  unionList('creditCards', v => v, 'credit cards');
+  // Custom categories live under expense/income
+  if (!state.customCats) state.customCats = { expense: [], income: [] };
+  ['expense','income'].forEach(k => {
+    if (!Array.isArray(state.customCats[k])) state.customCats[k] = [];
+    const seen = new Set(state.customCats[k].map(c => c && c.id));
+    backups.forEach(b => {
+      const old = b && b.data && b.data.customCats && b.data.customCats[k];
+      (Array.isArray(old) ? old : []).forEach(c => {
+        if (c && c.id && !seen.has(c.id)) { state.customCats[k].push(c); seen.add(c.id); bump('custom categories'); }
+      });
+    });
+  });
+  // Budgets — fill only the ones currently unset, never overwrite a real value
+  if (!state.allocations) state.allocations = {};
+  backups.forEach(b => {
+    const old = b && b.data && b.data.allocations;
+    if (old && typeof old === 'object' && !Array.isArray(old)) {
+      Object.keys(old).forEach(k => {
+        if (old[k] > 0 && !(state.allocations[k] > 0)) { state.allocations[k] = old[k]; bump('budgets'); }
+      });
+    }
+  });
+  changed += recoverSubCategories(true);
+  if (recoverSubCategories.lastRecovered) found.add('sub categories');
+
+  if (changed) {
+    save();
+    const active = document.querySelector('.page.active');
+    if (active && active.id === 'page-settings') renderSettings();
+    updateProfilePill(active ? active.id.replace('page-','') : 'home');
+  }
+  if (!silent) {
+    alert(changed
+      ? `Restored ${changed} item(s): ${[...found].join(', ')}.`
+      : 'Nothing to restore — no missing settings found in your backups.');
+  }
+  return changed;
 }
 function autoRecoverSubCategoriesOnce() {
   try {
