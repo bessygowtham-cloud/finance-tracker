@@ -1701,7 +1701,9 @@
         <label class="form-label">Credit Card</label>
         <div class="sub-chips-wrap" id="creditCardChips"></div>
       </div>
-      <div class="form-group">
+      <!-- Due date hidden: the value was never saved on the transaction.
+           Input kept so any existing reference to #creditDueDate stays valid. -->
+      <div class="form-group" style="display:none;">
         <label class="form-label">Credit Card Due Date</label>
         <input type="date" class="form-input" id="creditDueDate" />
       </div>
