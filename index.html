@@ -3504,7 +3504,9 @@ function renderCatGrid() {
 }
 function selectCat(id) {
   state.selectedCat=id; state.selectedSubCat=null;
-  renderCatGrid(); renderSubCatChips();
+  // Clear any prior selection so a hidden field can't save a stale value
+  if (NO_SPENT_FOR_CATS.includes(id)) state.selectedSpentFor = null;
+  renderCatGrid(); renderSubCatChips(); renderSpentForChips();
 }
 
 function saveTransaction() {
@@ -4684,11 +4686,14 @@ function renderSubCatSettings() {
 }
 
 // ══════════════════ FAMILY MEMBERS ══════════════════
+// Shared household categories — spending isn't attributable to one person.
+const NO_SPENT_FOR_CATS = ['water', 'transport', 'housing'];
 function renderSpentForChips() {
   const group = document.getElementById('spentForGroup');
   const wrap  = document.getElementById('spentForChips');
   if (!group) return;
   if (state.addType==='income') { group.style.display='none'; return; }
+  if (NO_SPENT_FOR_CATS.includes(state.selectedCat)) { group.style.display='none'; return; }
   const members = state.familyMembers || [];
   if (!members.length) { group.style.display='none'; return; }
   group.style.display = '';
