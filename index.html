@@ -876,6 +876,21 @@
     .settings-label { flex: 1; font-size: 15px; font-weight: 600; }
     .settings-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
 
+    /* Row used by the Custom Categories, Savings Goals, Sub Categories and
+       Family Members lists inside Settings. */
+    .account-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+    }
+    .account-item:last-child { border-bottom: none; }
+    .account-icon { font-size: 20px; width: 30px; text-align: center; flex-shrink: 0; }
+    .account-info { flex: 1; min-width: 0; }
+    .account-name {
+      font-size: 14px; font-weight: 600; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .account-balance { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
     /* ── PROFILE CARDS ── */
     .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 16px 18px; }
     .profile-card {
@@ -2746,10 +2761,40 @@ function startCloudSync(uid) {
       if (l.length) { localHadMore = true; return l; }        // cloud empty but local has data → keep local
       return l;
     };
+    // Union two lists so an entry present on only one device is never dropped.
+    // Objects match on id, primitives on value. Used for the settings-style
+    // lists nested inside objects (sub categories, custom categories).
+    const unionArr = (cloudVal, localVal) => {
+      const c = Array.isArray(cloudVal) ? cloudVal : [];
+      const l = Array.isArray(localVal) ? localVal : [];
+      if (!c.length) { if (l.length) localHadMore = true; return l; }
+      if (!l.length) return c;
+      const keyOf = it => (it && typeof it === 'object') ? (it.id != null ? it.id : JSON.stringify(it)) : it;
+      const out = [...c];
+      const seen = new Set(c.map(keyOf));
+      l.forEach(it => {
+        const k = keyOf(it);
+        if (!seen.has(k)) { out.push(it); seen.add(k); localHadMore = true; }
+      });
+      return out;
+    };
+    // Merge objects key-by-key rather than replacing wholesale. Replacing meant
+    // whichever device synced first could wipe keys only the other device had
+    // (e.g. custom sub categories replaced by another device's defaults).
     const mergeObj = (cloudVal, localVal, fallback) => {
-      if (cloudVal && typeof cloudVal === 'object' && Object.keys(cloudVal).length) return cloudVal;
-      if (localVal && Object.keys(localVal).length) { localHadMore = true; return localVal; }
-      return cloudVal || localVal || fallback;
+      const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+      const c = isObj(cloudVal) ? cloudVal : null;
+      const l = isObj(localVal) ? localVal : null;
+      if (!c && !l) return fallback;
+      if (!c) { localHadMore = true; return l; }
+      if (!l) return c;
+      const out = {};
+      new Set([...Object.keys(c), ...Object.keys(l)]).forEach(k => {
+        if (Array.isArray(c[k]) || Array.isArray(l[k])) out[k] = unionArr(c[k], l[k]);
+        else if (c[k] === undefined) { out[k] = l[k]; localHadMore = true; }
+        else out[k] = c[k];
+      });
+      return out;
     };
 
     state.transactions  = mergeArr(d.transactions, state.transactions);
@@ -2910,7 +2955,7 @@ let state = {
   recType: 'expense', recSelectedCat: null, recAccountId: 'wallet', recSelectedBank: null,
   addAccountId: 'wallet',
   customCatType: 'expense',
-  bankTags: ['Standard Chartered', 'Axis Bank', 'HDFC'],
+  bankTags: ['SC', 'Axis Bank', 'HDFC'],
   creditCards: ['HDFC', 'Axis', 'ICICI'],
 };
 
@@ -2955,6 +3000,18 @@ function load() {
       if (state.customCats.income)  state.customCats.income  = state.customCats.income.filter(c => !looksLikeOldWater(c));
     }
     localStorage.setItem('drinkingWaterRemoved', '1');
+  }
+  // One-time rename: "Standard Chartered" → "SC" (tag list + every reference)
+  if (!localStorage.getItem('scBankRenamed')) {
+    const OLD = 'Standard Chartered', NEW = 'SC';
+    if (Array.isArray(state.bankTags)) {
+      state.bankTags = state.bankTags.map(b => b === OLD ? NEW : b)
+        .filter((b, i, a) => a.indexOf(b) === i);
+    }
+    [state.transactions, state.recurring, state.purchases, state.parkedMoney].forEach(list => {
+      if (Array.isArray(list)) list.forEach(it => { if (it && it.bank === OLD) it.bank = NEW; });
+    });
+    localStorage.setItem('scBankRenamed', '1');
   }
   if (Object.keys(state.allocations).length === 0)
     EXPENSE_CATS.forEach(c => { state.allocations[c.id] = 0; });
@@ -4635,7 +4692,7 @@ function renderSpentForChips() {
   group.style.display = '';
   wrap.innerHTML = members.map(m =>
     `<button class="member-chip ${state.selectedSpentFor===m.name?'selected':''}" onclick="selectSpentFor('${m.name.replace(/'/g,"\\'")}')">
-      ${m.emoji||'👤'} ${m.name}
+      ${m.name}
     </button>`
   ).join('') +
   `<button class="member-chip chip-add-m" onclick="openFamilyModal()">+ Add</button>`;
