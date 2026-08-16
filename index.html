@@ -1903,6 +1903,11 @@
         <div><div class="settings-label">Backfill Recurring</div><div class="settings-sub">Add missed past months for all recurring transactions</div></div>
         <span style="color:var(--muted);">›</span>
       </div>
+      <div class="settings-row" onclick="compressStoredImages()" style="cursor:pointer;">
+        <span class="settings-icon">🗜️</span>
+        <div><div class="settings-label">Compress Images</div><div class="settings-sub">Shrink saved bill/receipt photos so they sync</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
     </div>
   </div>
 
@@ -2818,7 +2823,7 @@ function saveToCloud() {
     // clearly instead of letting the write fail with an opaque backend error.
     const bytes = new Blob([blob]).size;
     if (bytes > 950000) {
-      _cloudSyncError = `Data too large to sync (${(bytes/1048576).toFixed(2)} MB of 1 MB). Remove some bill/receipt images from Purchases or Parked Money.`;
+      _cloudSyncError = `Data too large to sync (${(bytes/1048576).toFixed(2)} MB of 1 MB). Try "Compress Images" below, or remove some bill/receipt photos.`;
       renderBackupStatus();
       return;
     }
@@ -4831,6 +4836,71 @@ let _purchBillType = null;   // 'image' or 'pdf'
 let _purchFilter = 'all';
 let _purchEditId = null;
 
+// Bill/receipt photos come straight off the camera at full resolution (2–4 MB
+// each), which blows past both the ~1 MB cloud document limit and the browser's
+// ~5 MB localStorage ceiling. Downscale to IMG_MAX_PX on the long edge and
+// re-encode as JPEG so a bill stays readable at a fraction of the size.
+const IMG_MAX_PX  = 1400;
+const IMG_QUALITY = 0.7;
+function compressImageDataUrl(dataUrl) {
+  return new Promise(resolve => {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) return resolve(dataUrl);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, IMG_MAX_PX / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width  * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        // White backdrop so transparent PNGs don't turn black once flattened to JPEG
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        const out = canvas.toDataURL('image/jpeg', IMG_QUALITY);
+        // Keep the original if compressing somehow made it larger
+        resolve(out.length < dataUrl.length ? out : dataUrl);
+      } catch (_) { resolve(dataUrl); }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+// Recompresses images already saved at full resolution. Runs once automatically
+// (older data predates the downscaling above) and can be re-run from Settings.
+async function compressStoredImages(silent) {
+  const before = JSON.stringify({p: state.purchases || [], k: state.parkedMoney || []}).length;
+  let changed = 0;
+  for (const p of (state.purchases || [])) {
+    if (p.billType === 'image' && typeof p.billData === 'string' && p.billData.startsWith('data:image/')) {
+      const out = await compressImageDataUrl(p.billData);
+      if (out !== p.billData) { p.billData = out; changed++; }
+    }
+  }
+  for (const k of (state.parkedMoney || [])) {
+    if (typeof k.receipt === 'string' && k.receipt.startsWith('data:image/')) {
+      const out = await compressImageDataUrl(k.receipt);
+      if (out !== k.receipt) { k.receipt = out; changed++; }
+    }
+  }
+  const after = JSON.stringify({p: state.purchases || [], k: state.parkedMoney || []}).length;
+  if (changed) { save(); renderBackupStatus(); }
+  if (!silent) {
+    alert(changed
+      ? `Compressed ${changed} image(s).\n${(before/1048576).toFixed(2)} MB → ${(after/1048576).toFixed(2)} MB`
+      : 'No images needed compressing.');
+  }
+  return {changed, before, after};
+}
+function autoCompressStoredImagesOnce() {
+  try {
+    if (localStorage.getItem('imagesCompressedV1')) return;
+    localStorage.setItem('imagesCompressedV1', '1');
+    setTimeout(() => { compressStoredImages(true).catch(e => console.error('Image compression error:', e)); }, 1500);
+  } catch(_) {}
+}
+
 function openAddPurchaseModal(editId) {
   _purchEditId = editId || null;
   _purchBillData = null;
@@ -4953,8 +5023,8 @@ function handleBillUpload(event) {
   }
   // Image
   const reader = new FileReader();
-  reader.onload = (e) => {
-    _purchBillData = e.target.result;
+  reader.onload = async (e) => {
+    _purchBillData = await compressImageDataUrl(e.target.result);
     _purchBillType = 'image';
     document.getElementById('purchBillPreviewImg').src = _purchBillData;
     document.getElementById('purchBillPreviewImg').style.display = '';
@@ -5834,16 +5904,16 @@ function updateParkedReceiptUI() {
 function onParkedReceiptChange(e) {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
-  // Soft size limit so we don't blow up Firestore (1MB doc limit)
-  if (file.size > 900 * 1024) {
+  // Images are downscaled below, so only non-image files (PDFs) need a size warning
+  if (!file.type.startsWith('image/') && file.size > 900 * 1024) {
     if (!confirm(`This file is ${(file.size/1024).toFixed(0)} KB. Files over ~900 KB may fail to sync to cloud. Continue?`)) {
       e.target.value = '';
       return;
     }
   }
   const reader = new FileReader();
-  reader.onload = () => {
-    _parkedReceiptData = reader.result; // data URL
+  reader.onload = async () => {
+    _parkedReceiptData = await compressImageDataUrl(reader.result);
     _parkedReceiptType = file.type.startsWith('image/') ? 'image' : 'pdf';
     _parkedReceiptName = file.name;
     updateParkedReceiptUI();
@@ -6591,6 +6661,7 @@ load();
 loadInvestments();
 integrityCheckRestore();
 autoApplyDueRecurring();
+autoCompressStoredImagesOnce();
 renderDashboard();
 updateMonthPill();
 updateProfilePill('home');
