@@ -1925,6 +1925,11 @@
         <div><div class="settings-label">Compress Images</div><div class="settings-sub">Shrink saved bill/receipt photos so they sync</div></div>
         <span style="color:var(--muted);">›</span>
       </div>
+      <div class="settings-row" onclick="recoverSubCategories()" style="cursor:pointer;">
+        <span class="settings-icon">🔖</span>
+        <div><div class="settings-label">Recover Sub Categories</div><div class="settings-sub">Restore ones lost from backups and past entries</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
     </div>
   </div>
 
@@ -4667,22 +4672,71 @@ function deleteSubCat(cat, name) {
   save(); renderSubCatSettings();
   if (state.selectedCat === cat) renderSubCatChips();
 }
+// Rebuilds sub categories lost when an earlier sync replaced the whole object
+// instead of merging it. Two independent sources: the rolling local backups
+// (which still hold the original lists) and the saved entries themselves, since
+// every transaction records the sub category it was filed under.
+function recoverSubCategories(silent) {
+  if (!state.subCategories) state.subCategories = {};
+  const target = state.subCategories;
+  let recovered = 0;
+  const add = (cat, name) => {
+    if (!cat || !name) return;
+    if (!Array.isArray(target[cat])) target[cat] = [];
+    if (!target[cat].includes(name)) { target[cat].push(name); recovered++; }
+  };
+  getBackups().forEach(b => {
+    const sc = b && b.data && b.data.subCategories;
+    if (sc && typeof sc === 'object' && !Array.isArray(sc)) {
+      Object.keys(sc).forEach(cat => {
+        (Array.isArray(sc[cat]) ? sc[cat] : []).forEach(n => add(cat, n));
+      });
+    }
+  });
+  [...(state.transactions || []), ...(state.recurring || [])].forEach(t => {
+    if (t && t.subCategory) add(t.category, t.subCategory);
+  });
+  if (recovered) {
+    save();
+    renderSubCatSettings();
+    if (document.getElementById('subCatChips')) renderSubCatChips();
+  }
+  if (!silent) {
+    alert(recovered ? `Recovered ${recovered} sub category(s).` : 'Nothing to recover — none were missing.');
+  }
+  return recovered;
+}
+function autoRecoverSubCategoriesOnce() {
+  try {
+    if (localStorage.getItem('subCatsRecoveredV1')) return;
+    localStorage.setItem('subCatsRecoveredV1', '1');
+    setTimeout(() => { try { recoverSubCategories(true); } catch(e) { console.error('Sub category recovery failed:', e); } }, 800);
+  } catch(_) {}
+}
 function renderSubCatSettings() {
   const el = document.getElementById('subCatSettingsList');
   if (!el) return;
-  const all = SUB_CAT_IDS.flatMap(id =>
-    ((state.subCategories||{})[id]||[]).map(name => ({ id, name }))
+  // Iterate whatever categories actually have sub categories, not a fixed list,
+  // so recovered entries under any category are still visible and deletable.
+  const sc = state.subCategories || {};
+  const all = Object.keys(sc).flatMap(id =>
+    (Array.isArray(sc[id]) ? sc[id] : []).map(name => ({ id, name }))
   );
   if (!all.length) { el.innerHTML='<div class="empty-inner">No sub categories yet. Tap <b>+ Add</b>.</div>'; return; }
-  el.innerHTML = all.map(x => `
+  el.innerHTML = all.map(x => {
+    // Resolve from the real category list so any category works, not just the
+    // six in SUB_CAT_LABELS — a missing entry there used to throw and blank the
+    // whole Settings page.
+    const c = getAllCats().find(g => g.id === x.id) || { emoji: '🏷️', name: x.id };
+    return `
     <div class="account-item">
-      <div class="account-icon" style="font-size:18px;">${SUB_CAT_LABELS[x.id].split(' ')[0]}</div>
+      <div class="account-icon" style="font-size:18px;">${c.emoji}</div>
       <div class="account-info">
-        <div class="account-name">${x.name}</div>
-        <div class="account-balance">${SUB_CAT_LABELS[x.id].split(' ').slice(1).join(' ')}</div>
+        <div class="account-name">${escapeHtml(x.name)}</div>
+        <div class="account-balance">${escapeHtml(c.name)}</div>
       </div>
       <button onclick="deleteSubCat('${x.id}','${x.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:4px 8px;">✕</button>
-    </div>`).join('');
+    </div>`; }).join('');
 }
 
 // ══════════════════ FAMILY MEMBERS ══════════════════
@@ -6726,6 +6780,7 @@ loadInvestments();
 integrityCheckRestore();
 autoApplyDueRecurring();
 autoCompressStoredImagesOnce();
+autoRecoverSubCategoriesOnce();
 renderDashboard();
 updateMonthPill();
 updateProfilePill('home');
