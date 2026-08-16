@@ -974,7 +974,7 @@
 
     /* ── PARKED MONEY (Profile 3) PAGE ── */
     .parked-summary {
-      margin: 14px 16px 0;
+      margin: 0 16px;
       padding: 14px 18px;
       border-radius: 18px;
       background: linear-gradient(135deg, rgba(251,191,36,0.85), rgba(245,158,11,0.75));
@@ -6535,6 +6535,12 @@ function isLoanClosed(p) {
   if (!p.closeDate) return false;
   return new Date(p.closeDate) <= new Date();
 }
+// Date an entry is ordered by: when it closed if it has, otherwise when it
+// started — so the most recently matured loan sorts to the top.
+function parkedSortDate(p) {
+  const d = isLoanClosed(p) && p.closeDate ? p.closeDate : (p.date || 0);
+  return new Date(d).getTime() || 0;
+}
 
 // Per-entry realized/accrued profit (for totals)
 function parkedEntryProfit(p) {
@@ -6628,7 +6634,7 @@ function renderParked() {
     _parkedActiveTab = 'all';
   }
   const tabsHtml = (state.parkedMoney||[]).length ? `
-    <div style="display:flex;gap:6px;overflow-x:auto;padding:14px 16px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;">
+    <div style="display:flex;gap:6px;overflow-x:auto;padding:16px 16px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch;">
       ${visibleTabs.map(t => `
         <button onclick="setParkedTab('${t.id}')" style="flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:99px;border:1px solid ${_parkedActiveTab===t.id?'rgba(99,102,241,0.55)':'var(--input-border)'};background:${_parkedActiveTab===t.id?'rgba(99,102,241,0.16)':'var(--input-bg)'};color:${_parkedActiveTab===t.id?'var(--primary)':'var(--muted)'};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
           ${t.emoji} ${t.name}
@@ -6642,7 +6648,7 @@ function renderParked() {
     if (_parkedActiveTab !== 'all' && _parkedActiveTab !== t.id) return '';
     let items = (state.parkedMoney || [])
       .filter(p => p.type === t.id)
-      .sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)); // latest first
+      .sort((a,b) => parkedSortDate(b) - parkedSortDate(a)); // latest activity first
     if (!items.length) return '';
 
     // Open/Closed filter for both FD and Loan Given
@@ -6747,7 +6753,8 @@ function renderParked() {
             }
             meta = `${ratePart} · ${statusBit}`;
             // Box: single headline amount + profit
-            const headerLabel  = isMatured ? 'MATURED' : showMatV ? 'MATURES TO' : 'CURRENT';
+            // No label once matured — the amount and the meta line already say so
+            const headerLabel  = isMatured ? '' : showMatV ? 'MATURES TO' : 'CURRENT';
             const headerAmount = showMatV ? matV.maturityAmount : loanP.currentValue;
             const headerProfit = headerAmount - (p.amount || 0);
             const headerPct    = (p.amount||0) > 0 ? Math.round((headerProfit / p.amount) * 100) : 0;
@@ -6757,7 +6764,7 @@ function renderParked() {
             const profText  = isMatured ? '#059669' : '#7c3aed';
             rightSide = `<div style="text-align:right;">
               <div style="display:inline-block;background:${boxBg};border:1.5px solid ${boxBorder};border-radius:10px;padding:5px 10px;text-align:right;">
-                <div style="font-size:9px;font-weight:700;color:${boxText};letter-spacing:.4px;">${headerLabel}</div>
+                ${headerLabel ? `<div style="font-size:9px;font-weight:700;color:${boxText};letter-spacing:.4px;">${headerLabel}</div>` : ''}
                 <div style="font-size:16px;font-weight:800;color:${boxText};">${fmt(headerAmount)}</div>
                 <div style="font-size:11px;font-weight:800;color:${profText};margin-top:1px;">+${fmt(headerProfit)} (+${headerPct}%)</div>
               </div>
