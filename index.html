@@ -708,7 +708,7 @@
     .btn-primary:active { transform: scale(.98); box-shadow: 0 4px 12px rgba(124,110,246,0.3); }
 
     /* ── HISTORY PAGE ── */
-    .search-wrap { padding: 12px 16px 4px; position: relative; }
+    .search-wrap { padding: 4px 16px 4px; position: relative; }
     .search-input {
       width: 100%; padding: 11px 16px 11px 44px;
       background: var(--input-bg);
@@ -741,7 +741,7 @@
     .txn-list-card { margin: 0 16px 8px; }
 
     /* ── SUMMARY CHIPS ── */
-    .summary-chips { display: flex; gap: 8px; padding: 8px 16px 14px; }
+    .summary-chips { display: flex; gap: 8px; padding: 8px 16px 6px; }
     .summary-chip {
       flex: 1; border-radius: 16px; padding: 13px 12px; text-align: center;
       backdrop-filter: blur(16px);
@@ -3212,6 +3212,17 @@ function monthTxns(account) {
 }
 // Always scoped to state.currentMonth/currentYear, ignoring the All Time toggle.
 // Used by widgets (forecast, insights, budget pacing) whose math only makes sense per-month.
+// Newest first by date, then by creation time so an entry added later on the
+// same date sorts above earlier ones. Ids are Date.now()-based, so their
+// leading digits give the creation order; anything unparseable sorts last.
+function entryCreatedAt(t) {
+  const n = parseInt(String((t && t.id) || ''), 10);
+  return Number.isFinite(n) ? n : 0;
+}
+function byNewestFirst(a, b) {
+  const d = new Date(b.date) - new Date(a.date);
+  return d !== 0 ? d : entryCreatedAt(b) - entryCreatedAt(a);
+}
 function monthOnlyTxns(account) {
   const acc = account !== undefined ? account : state.activeAccount;
   return state.transactions.filter(t => {
@@ -3444,7 +3455,7 @@ function renderDashboard() {
   }
 
   const recentEl = document.getElementById('dashTxns');
-  const recent = [...txns].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+  const recent = [...txns].sort(byNewestFirst).slice(0,5);
   recentEl.innerHTML = recent.length ? recent.map(t=>txnHTML(t)).join('') :
     '<div class="empty-state"><div class="emoji">💸</div><p>No transactions yet.<br>Tap <b>+</b> to add one.</p></div>';
 }
@@ -3755,8 +3766,8 @@ function renderTxnPersonChips() {
   const members = state.familyMembers || [];
   if (!members.length) { row.style.display='none'; return; }
   row.style.display='';
-  row.innerHTML = `<button class="filter-chip ${!_txnPersonFilter?'active':''}" onclick="setPersonFilter(null,this)">👥 All</button>` +
-    members.map(m=>`<button class="filter-chip ${_txnPersonFilter===m.name?'active':''}" onclick="setPersonFilter('${m.name.replace(/'/g,"\\'")}',this)">${m.emoji||'👤'} ${m.name}</button>`).join('');
+  row.innerHTML = `<button class="filter-chip ${!_txnPersonFilter?'active':''}" onclick="setPersonFilter(null,this)">All</button>` +
+    members.map(m=>`<button class="filter-chip ${_txnPersonFilter===m.name?'active':''}" onclick="setPersonFilter('${m.name.replace(/'/g,"\\'")}',this)">${escapeHtml(m.name)}</button>`).join('');
 }
 function setPersonFilter(name, el) {
   _txnPersonFilter = name;
@@ -3785,7 +3796,7 @@ function renderTxns() {
     const cat=getAllCats().find(c=>c.id===t.category);
     return (t.note&&t.note.toLowerCase().includes(search))||(cat&&cat.name.toLowerCase().includes(search));
   });
-  filtered.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  filtered.sort(byNewestFirst);
   const container = document.getElementById('txnListContainer');
   const catFilterCat = _txnCategoryFilter ? getAllCats().find(c=>c.id===_txnCategoryFilter) : null;
   const personFilterM = _txnPersonFilter ? (state.familyMembers||[]).find(m=>m.name===_txnPersonFilter) : null;
@@ -5361,7 +5372,7 @@ function renderPurchases() {
     (p.notes||'').toLowerCase().includes(search) ||
     (p.accountName||'').toLowerCase().includes(search)
   );
-  filtered.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  filtered.sort(byNewestFirst);
 
   const container = document.getElementById('purchListContainer');
   if (!filtered.length) {
