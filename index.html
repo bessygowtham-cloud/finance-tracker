@@ -3531,7 +3531,9 @@ function renderDashboard() {
 }
 function setActiveAccount(id) { state.activeAccount=id; renderDashboard(); }
 
-function txnHTML(t) {
+// hideDate is used by History, where rows sit under a date pill already. The
+// dashboard's recent list is not grouped by date, so it keeps showing it.
+function txnHTML(t, hideDate) {
   const cat = getAllCats().find(c=>c.id===t.category)||{emoji:'💰',name:t.category};
   const acc = state.accounts.find(a=>a.id===t.account);
   const sign = t.type==='income' ? '+' : '-';
@@ -3543,7 +3545,7 @@ function txnHTML(t) {
   const parts = [];
   if (t.note)        parts.push(escapeHtml(cat.name));
   if (t.subCategory) parts.push(escapeHtml(t.subCategory));
-  parts.push(dateStr);
+  if (!hideDate)     parts.push(dateStr);
   if (acc)           parts.push(`${acc.emoji} ${escapeHtml(acc.name)}`);
   if (t.bank)        parts.push(`🏦 ${escapeHtml(t.bank)}`);
   if (t.spentFor)    parts.push(`👤 ${escapeHtml(t.spentFor)}`);
@@ -3951,7 +3953,7 @@ function renderTxns() {
   filtered.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t);});
   container.innerHTML = banner+totalLine+Object.entries(groups).map(([date,ts])=>{
     const label=new Date(date).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
-    return `<div class="txn-date-group txn-date-pill">${label}</div><div class="txn-list-flat">${ts.map(t=>txnHTML(t)).join('')}</div>`;
+    return `<div class="txn-date-group txn-date-pill">${label}</div><div class="txn-list-flat">${ts.map(t=>txnHTML(t, true)).join('')}</div>`;
   }).join('');
 }
 
