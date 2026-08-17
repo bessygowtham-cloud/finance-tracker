@@ -762,6 +762,17 @@
       box-shadow: 0 4px 14px rgba(124,110,246,0.3);
     }
     .txn-date-group { padding: 8px 16px 4px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+    /* Centered pill variant used by History. Purchases reuses .txn-date-group
+       as a full-width flex row, so this stays a separate modifier. */
+    .txn-date-pill {
+      width: fit-content;
+      margin: 12px auto 8px;
+      padding: 4px 14px;
+      border-radius: 99px;
+      background: rgba(124,110,246,0.10);
+      border: 1px solid rgba(124,110,246,0.18);
+    }
+    body.dark .txn-date-pill { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.10); }
     .txn-list-card { margin: 0 16px 8px; }
 
     /* ── SUMMARY CHIPS ── */
@@ -3525,14 +3536,21 @@ function txnHTML(t) {
   const acc = state.accounts.find(a=>a.id===t.account);
   const sign = t.type==='income' ? '+' : '-';
   const dateStr = new Date(t.date).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
-  const accPart     = acc ? ` · ${acc.emoji} ${acc.name}` : '';
-  const subCatPart  = t.subCategory ? ` · ${t.subCategory}` : '';
-  const spentForPart= t.spentFor ? ` · 👤 ${t.spentFor}` : '';
-  const bankPart    = t.bank ? ` · 🏦 ${t.bank}` : '';
+  // With no note the title falls back to the category name, so repeating the
+  // category in the meta line would show it twice — include it only when the
+  // title is actually the note.
+  const title = t.note || cat.name;
+  const parts = [];
+  if (t.note)        parts.push(escapeHtml(cat.name));
+  if (t.subCategory) parts.push(escapeHtml(t.subCategory));
+  parts.push(dateStr);
+  if (acc)           parts.push(`${acc.emoji} ${escapeHtml(acc.name)}`);
+  if (t.bank)        parts.push(`🏦 ${escapeHtml(t.bank)}`);
+  if (t.spentFor)    parts.push(`👤 ${escapeHtml(t.spentFor)}`);
   return `<div class="txn-item" onclick="openEditTxn('${t.id}')" style="cursor:pointer;">
     <div class="txn-info">
-      <div class="txn-name">${t.note||cat.name}</div>
-      <div class="txn-meta">${cat.name}${subCatPart} · ${dateStr}${accPart}${bankPart}${spentForPart}</div>
+      <div class="txn-name">${escapeHtml(title)}</div>
+      <div class="txn-meta">${parts.join(' · ')}</div>
     </div>
     <div class="txn-amount ${t.type}">${sign}${fmt(t.amount)}</div>
   </div>`;
@@ -3933,7 +3951,7 @@ function renderTxns() {
   filtered.forEach(t=>{(groups[t.date]=groups[t.date]||[]).push(t);});
   container.innerHTML = banner+totalLine+Object.entries(groups).map(([date,ts])=>{
     const label=new Date(date).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
-    return `<div class="txn-date-group">${label}</div><div class="txn-list-flat">${ts.map(t=>txnHTML(t)).join('')}</div>`;
+    return `<div class="txn-date-group txn-date-pill">${label}</div><div class="txn-list-flat">${ts.map(t=>txnHTML(t)).join('')}</div>`;
   }).join('');
 }
 
