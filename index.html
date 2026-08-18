@@ -1968,6 +1968,11 @@
         <div><div class="settings-label">Restore Lost Settings</div><div class="settings-sub">Bring back sub categories, names, banks &amp; budgets from backups</div></div>
         <span style="color:var(--muted);">›</span>
       </div>
+      <div class="settings-row" onclick="recoverMissingRecords()" style="cursor:pointer;">
+        <span class="settings-icon">🧾</span>
+        <div><div class="settings-label">Recover Missing Entries</div><div class="settings-sub">Restore transactions &amp; records found in local backups</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
     </div>
   </div>
 
@@ -2870,18 +2875,37 @@ function startCloudSync(uid) {
       return out;
     };
 
-    state.transactions  = mergeArr(d.transactions, state.transactions);
-    state.recurring     = mergeArr(d.recurring,    state.recurring);
-    state.accounts      = mergeArr(d.accounts,     state.accounts);
+    // Deletions first, so the union below honours them from either device
+    state.deletedIds = [...new Set([...(d.deletedIds || []), ...(state.deletedIds || [])])];
+    const dead = new Set(state.deletedIds);
+    // Records carry stable ids, so union them instead of letting one side's
+    // copy replace the other's — a device holding an older list used to wipe
+    // entries the other device had just added.
+    const unionRecords = (cloudVal, localVal) => {
+      const c = Array.isArray(cloudVal) ? cloudVal : [];
+      const l = Array.isArray(localVal) ? localVal : [];
+      const out = [], seen = new Set();
+      let extraFromLocal = false;
+      c.forEach(it => { if (it && it.id != null && !dead.has(it.id) && !seen.has(it.id)) { seen.add(it.id); out.push(it); } });
+      l.forEach(it => {
+        if (!it || it.id == null || dead.has(it.id) || seen.has(it.id)) return;
+        seen.add(it.id); out.push(it); extraFromLocal = true;
+      });
+      if (extraFromLocal) localHadMore = true;
+      return out;
+    };
+    state.transactions  = unionRecords(d.transactions, state.transactions);
+    state.recurring     = unionRecords(d.recurring,    state.recurring);
+    state.accounts      = mergeArr(d.accounts,         state.accounts);
     if (!state.accounts || !state.accounts.length) state.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
-    state.goals         = mergeArr(d.goals,         state.goals);
-    state.familyMembers = mergeArr(d.familyMembers, state.familyMembers);
-    state.purchases     = mergeArr(d.purchases,     state.purchases);
-    state.reminders     = mergeArr(d.reminders,     state.reminders);
-    state.parkedMoney   = mergeArr(d.parkedMoney,   state.parkedMoney);
-    state.bankTags      = mergeArr(d.bankTags,      state.bankTags);
-    state.creditCards   = mergeArr(d.creditCards,   state.creditCards);
-    investments         = mergeArr(d.investments,   investments);
+    state.goals         = unionRecords(d.goals,        state.goals);
+    state.familyMembers = mergeArr(d.familyMembers,    state.familyMembers);
+    state.purchases     = unionRecords(d.purchases,    state.purchases);
+    state.reminders     = unionRecords(d.reminders,    state.reminders);
+    state.parkedMoney   = unionRecords(d.parkedMoney,  state.parkedMoney);
+    state.bankTags      = mergeArr(d.bankTags,         state.bankTags);
+    state.creditCards   = mergeArr(d.creditCards,      state.creditCards);
+    investments         = unionRecords(d.investments,  investments);
     localStorage.setItem('investmentState', JSON.stringify(investments));
 
     state.allocations   = mergeObj(d.allocations,  state.allocations, {});
@@ -2938,6 +2962,7 @@ function saveToCloud() {
       parkedMoney:     state.parkedMoney,
       profile3Name:    state.profile3Name,
       creditCards:     state.creditCards,
+      deletedIds:      state.deletedIds || [],
       investments:     (typeof investments !== 'undefined' ? investments : []),
     });
     // A Firestore document is capped at ~1 MiB. Bill/receipt images are stored
@@ -3032,6 +3057,7 @@ let state = {
   recType: 'expense', recSelectedCat: null, recAccountId: 'wallet', recSelectedBank: null,
   addAccountId: 'wallet',
   customCatType: 'expense',
+  deletedIds: [],
   bankTags: ['SC', 'Axis Bank', 'HDFC'],
   creditCards: ['HDFC', 'Axis', 'ICICI'],
 };
@@ -3057,6 +3083,7 @@ function load() {
     state.purchases      = p.purchases      || [];
     state.reminders      = p.reminders      || [];
     state.parkedMoney    = p.parkedMoney    || [];
+    state.deletedIds     = p.deletedIds     || [];
     state.profile3Name   = p.profile3Name   || 'Jayanthi';
     state.darkMode       = p.darkMode       || false;
   }
@@ -3109,6 +3136,7 @@ function buildSnapshot() {
     customCats: state.customCats, goals: state.goals,
     subCategories: state.subCategories, familyMembers: state.familyMembers,
     bankTags: state.bankTags, creditCards: state.creditCards,
+    deletedIds: state.deletedIds,
     purchases: state.purchases,
     reminders: state.reminders,
     parkedMoney: state.parkedMoney,
@@ -3170,6 +3198,7 @@ function applySnapshot(s) {
   state.purchases     = s.purchases     || [];
   state.reminders     = s.reminders     || [];
   state.parkedMoney   = s.parkedMoney   || [];
+  state.deletedIds    = s.deletedIds    || [];
   state.profile3Name  = s.profile3Name  || 'Other Person';
   if (Array.isArray(s.investments)) {
     investments = s.investments;
@@ -3635,8 +3664,17 @@ function saveTransaction() {
   updateMonthPill();
   navigate('home');
 }
+// Ids of records deleted on this device. Sync unions record lists by id so a
+// device holding an older copy can't wipe newer entries; without tombstones
+// that union would also resurrect anything deleted elsewhere.
+function tombstone(id) {
+  if (!id) return;
+  if (!Array.isArray(state.deletedIds)) state.deletedIds = [];
+  if (!state.deletedIds.includes(id)) state.deletedIds.push(id);
+}
 function deleteTxn(id) {
   if (!confirm('Delete this transaction?')) return;
+  tombstone(id);
   state.transactions = state.transactions.filter(t=>t.id!==id);
   save();
   const a = document.querySelector('.page.active');
@@ -3784,6 +3822,7 @@ function selectEditSubCat(s) {
 function deleteFromEditModal() {
   if (!editState.txnId) return;
   if (!confirm('Delete this transaction?')) return;
+  tombstone(editState.txnId);
   state.transactions = state.transactions.filter(t => t.id !== editState.txnId);
   save();
   document.getElementById('editTxnModal').classList.remove('open');
@@ -4409,6 +4448,7 @@ function saveRecurring() {
 }
 function deleteRecurring(id) {
   if(!confirm('Delete this recurring transaction?'))return;
+  tombstone(id);
   state.recurring=state.recurring.filter(r=>r.id!==id); save(); renderRecurringList();
 }
 function applyAllRecurring() {
@@ -4751,6 +4791,7 @@ function saveGoal() {
 }
 function deleteGoal(id) {
   if(!confirm('Delete this goal?'))return;
+  tombstone(id);
   state.goals=state.goals.filter(g=>g.id!==id);
   save(); renderGoalsList(); renderGoalSettings();
 }
@@ -4933,6 +4974,71 @@ function restoreLostSettings(silent) {
       : 'Nothing to restore — no missing settings found in your backups.');
   }
   return changed;
+}
+// Restores records that exist in a local backup snapshot but not in the current
+// data — e.g. entries wiped when another device synced an older copy over them.
+// Additive and id-matched: it never deletes, never duplicates, and skips
+// anything deliberately deleted (tombstoned).
+function recoverMissingRecords(silent) {
+  const backups = getBackups();
+  if (!backups.length) {
+    if (!silent) alert('No local backup snapshots available to recover from.');
+    return 0;
+  }
+  const dead = new Set(state.deletedIds || []);
+  const lists = [
+    ['transactions', 'transactions'],
+    ['purchases',    'purchases'],
+    ['parkedMoney',  'parked money entries'],
+    ['recurring',    'recurring transactions'],
+    ['goals',        'goals'],
+    ['reminders',    'reminders'],
+  ];
+  const found = [];
+  let total = 0;
+  lists.forEach(([field, label]) => {
+    if (!Array.isArray(state[field])) state[field] = [];
+    const seen = new Set(state[field].map(x => x && x.id));
+    let added = 0;
+    backups.forEach(b => {
+      const old = b && b.data && b.data[field];
+      (Array.isArray(old) ? old : []).forEach(it => {
+        if (!it || it.id == null || seen.has(it.id) || dead.has(it.id)) return;
+        state[field].push(it); seen.add(it.id); added++;
+      });
+    });
+    if (added) { found.push(`${added} ${label}`); total += added; }
+  });
+  // Investments live in their own storage key
+  if (typeof investments !== 'undefined') {
+    const seen = new Set(investments.map(x => x && x.id));
+    let added = 0;
+    backups.forEach(b => {
+      const old = b && b.data && b.data.investments;
+      (Array.isArray(old) ? old : []).forEach(it => {
+        if (!it || it.id == null || seen.has(it.id) || dead.has(it.id)) return;
+        investments.push(it); seen.add(it.id); added++;
+      });
+    });
+    if (added) {
+      localStorage.setItem('investmentState', JSON.stringify(investments));
+      found.push(`${added} investments`); total += added;
+    }
+  }
+  if (total) {
+    save();
+    const a = document.querySelector('.page.active');
+    if (a) {
+      if (a.id==='page-home')  renderDashboard();
+      if (a.id==='page-txns')  renderTxns();
+      if (a.id==='page-charts')renderCharts();
+      if (a.id==='page-settings') renderSettings();
+    }
+  }
+  if (!silent) {
+    alert(total ? `Recovered ${found.join(', ')}.` : 'Nothing missing — your backups contain no entries that are absent here.');
+  }
+  return total;
 }
 function autoRecoverSubCategoriesOnce() {
   try {
@@ -5436,6 +5542,7 @@ function savePurchase() {
 
 function deletePurchase(id) {
   if (!confirm('Delete this purchase record?')) return;
+  tombstone(id);
   state.purchases = (state.purchases||[]).filter(p=>p.id!==id);
   save();
   renderPurchases();
@@ -5683,6 +5790,7 @@ function saveInvestment() {
 function deleteCurrentInvestment() {
   if (!invEditingId) return;
   if (!confirm('Delete this investment?')) return;
+  tombstone(invEditingId);
   investments = investments.filter(x => x.id !== invEditingId);
   saveInvestments();
   document.getElementById('investmentModal').classList.remove('open');
@@ -5690,6 +5798,7 @@ function deleteCurrentInvestment() {
 }
 function deleteInvestment(id) {
   if (!confirm('Delete this investment?')) return;
+  tombstone(id);
   investments = investments.filter(x => x.id !== id);
   saveInvestments();
   renderInvestments();
@@ -6103,6 +6212,7 @@ function saveReminder() {
 function deleteCurrentReminder() {
   if (!_editingReminderId) return;
   if (!confirm('Delete this reminder?')) return;
+  tombstone(_editingReminderId);
   state.reminders = state.reminders.filter(r => r.id !== _editingReminderId);
   save();
   scheduleAllReminders();
@@ -6195,6 +6305,7 @@ function fireReminder(id) {
     setTimeout(scheduleAllReminders, 1000);
   } else {
     // One-time: remove
+    tombstone(id);
     state.reminders = state.reminders.filter(x => x.id !== id);
     save();
     renderReminders();
@@ -6424,6 +6535,7 @@ function saveParked() {
 function deleteCurrentParked() {
   if (!_parkedEditingId) return;
   if (!confirm('Delete this entry?')) return;
+  tombstone(_parkedEditingId);
   state.parkedMoney = state.parkedMoney.filter(p => p.id !== _parkedEditingId);
   save();
   renderParked();
