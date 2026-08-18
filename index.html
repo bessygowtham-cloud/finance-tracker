@@ -2630,6 +2630,12 @@
       </div>
     </div>
 
+    <!-- Spent For (Family Member) -->
+    <div class="form-group" id="editSpentForGroup" style="display:none;">
+      <label class="form-label">Spent For <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+      <div class="sub-chips-wrap" id="editSpentForChips"></div>
+    </div>
+
     <!-- Note -->
     <div class="form-group">
       <label class="form-label">Note <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
@@ -3696,6 +3702,7 @@ function openEditTxn(id) {
   editState.type        = t.type;
   editState.selectedCat = t.category || null;
   editState.selectedSubCat = t.subCategory || null;
+  editState.selectedSpentFor = t.spentFor || null;
   editState.selectedBank   = t.bank || null;
   editState.accountId      = t.account || state.accounts[0]?.id;
 
@@ -3736,7 +3743,9 @@ function setEditType(type, skipGridRefresh) {
   const iBtn = document.getElementById('editTypeIncome');
   eBtn.className = type==='expense' ? 'active expense' : '';
   iBtn.className = type==='income'  ? 'active income'  : '';
+  if (type === 'income') editState.selectedSpentFor = null;
   renderEditCatGrid();
+  renderEditSpentForChips();
 }
 
 function renderEditAccountChips() {
@@ -3796,16 +3805,37 @@ function renderEditCatGrid() {
 }
 function selectEditCat(id) {
   editState.selectedCat=id; editState.selectedSubCat=null;
+  if (NO_SPENT_FOR_CATS.includes(id)) editState.selectedSpentFor = null;
   renderEditCatGrid();
+  renderEditSpentForChips();
 }
 
+function renderEditSpentForChips() {
+  const group = document.getElementById('editSpentForGroup');
+  const wrap  = document.getElementById('editSpentForChips');
+  if (!group || !wrap) return;
+  const members = state.familyMembers || [];
+  // Same rules as the Add page: not for income, not for shared categories
+  if (editState.type === 'income' || NO_SPENT_FOR_CATS.includes(editState.selectedCat) || !members.length) {
+    group.style.display = 'none';
+    return;
+  }
+  group.style.display = '';
+  wrap.innerHTML = members.map(m =>
+    `<button class="sub-chip ${editState.selectedSpentFor===m.name?'selected':''}" onclick="selectEditSpentFor('${m.name.replace(/'/g,"\\'")}')">${escapeHtml(m.name)}</button>`
+  ).join('');
+}
+function selectEditSpentFor(name) {
+  editState.selectedSpentFor = editState.selectedSpentFor === name ? null : name;
+  renderEditSpentForChips();
+}
 function renderEditSubCatChips() {
   const field = document.getElementById('editSubCatField');
   const wrap  = document.getElementById('editSubCatChips');
   if (!field||!wrap) return;
-  const subMap = { food:'food', transport:'transport', health:'health', bills:'bills' };
-  const key = subMap[editState.selectedCat];
-  const subs = key ? (state.subCategories[key]||[]) : [];
+  // Any category can have sub categories (Water and Loan ship with defaults),
+  // so read them straight off the map instead of a hardcoded subset.
+  const subs = (state.subCategories || {})[editState.selectedCat] || [];
   if (!subs.length) { field.classList.remove('visible'); return; }
   field.classList.add('visible');
   wrap.innerHTML = subs.map(s=>
@@ -3846,6 +3876,7 @@ function saveEditTxn() {
     amount,
     category:    editState.selectedCat,
     subCategory: editState.selectedSubCat || '',
+    spentFor:    editState.selectedSpentFor || '',
     bank:        editState.selectedBank   || '',
     note, date,
     account:     editState.accountId,
