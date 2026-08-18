@@ -2890,15 +2890,24 @@ function startCloudSync(uid) {
     const unionRecords = (cloudVal, localVal) => {
       const c = Array.isArray(cloudVal) ? cloudVal : [];
       const l = Array.isArray(localVal) ? localVal : [];
-      const out = [], seen = new Set();
+      const byId = new Map();
       let extraFromLocal = false;
-      c.forEach(it => { if (it && it.id != null && !dead.has(it.id) && !seen.has(it.id)) { seen.add(it.id); out.push(it); } });
-      l.forEach(it => {
-        if (!it || it.id == null || dead.has(it.id) || seen.has(it.id)) return;
-        seen.add(it.id); out.push(it); extraFromLocal = true;
-      });
+      const consider = (it, fromLocal) => {
+        if (!it || it.id == null || dead.has(it.id)) return;
+        const prev = byId.get(it.id);
+        if (!prev) { byId.set(it.id, it); if (fromLocal) extraFromLocal = true; return; }
+        // Present on both sides: keep whichever was edited most recently.
+        // Without this the cloud copy always won, so a snapshot carrying
+        // pre-edit data could land after a local edit and revert it.
+        if ((it.updatedAt || 0) > (prev.updatedAt || 0)) {
+          byId.set(it.id, it);
+          if (fromLocal) extraFromLocal = true;
+        }
+      };
+      c.forEach(it => consider(it, false));
+      l.forEach(it => consider(it, true));
       if (extraFromLocal) localHadMore = true;
-      return out;
+      return [...byId.values()];
     };
     state.transactions  = unionRecords(d.transactions, state.transactions);
     state.recurring     = unionRecords(d.recurring,    state.recurring);
@@ -3659,6 +3668,7 @@ function saveTransaction() {
     amount, category: state.selectedCat,
     subCategory: state.selectedSubCat || '',
     spentFor: state.selectedSpentFor || '',
+    updatedAt: Date.now(),
     bank: state.selectedBank || '',
     note, date, account: state.addAccountId,
   });
@@ -3877,6 +3887,7 @@ function saveEditTxn() {
     category:    editState.selectedCat,
     subCategory: editState.selectedSubCat || '',
     spentFor:    editState.selectedSpentFor || '',
+    updatedAt:   Date.now(),
     bank:        editState.selectedBank   || '',
     note, date,
     account:     editState.accountId,
@@ -4467,7 +4478,7 @@ function saveRecurring() {
   if(!amount||amount<=0)return alert('Please enter a valid amount.');
   if(!state.recSelectedCat)return alert('Please select a category.');
   if(!day||day<1||day>31)return alert('Please enter a valid day (1–31).');
-  const payload = { name, type:state.recType, amount, category:state.recSelectedCat, subCategory:state.recSelectedSubCat||'', account, bank:state.recSelectedBank||'', dayOfMonth:day };
+  const payload = { name, type:state.recType, amount, category:state.recSelectedCat, subCategory:state.recSelectedSubCat||'', account, bank:state.recSelectedBank||'', dayOfMonth:day, updatedAt:Date.now() };
   if (_editingRecurringId) {
     const r = state.recurring.find(x => x.id === _editingRecurringId);
     if (r) Object.assign(r, payload);
@@ -4814,7 +4825,7 @@ function saveGoal() {
   const deadline=document.getElementById('goalDeadline').value||'';
   if(!name)return alert('Please enter a goal name.');
   if(target<=0)return alert('Please enter a target amount.');
-  state.goals.push({id:Date.now().toString(),name,emoji,target,saved,deadline});
+  state.goals.push({id:Date.now().toString(),name,emoji,target,saved,deadline,updatedAt:Date.now()});
   save();
   document.getElementById('goalModal').classList.remove('open');
   renderGoalsList();
@@ -5556,6 +5567,7 @@ function savePurchase() {
     warranty:    document.getElementById('purchWarranty').value || '',
     billData:    _purchBillData,
     billType:    _purchBillType,
+    updatedAt:   Date.now(),
   };
 
   if (_purchEditId) {
@@ -5805,9 +5817,10 @@ function saveInvestment() {
 
   if (invEditingId) {
     const inv = investments.find(x => x.id === invEditingId);
-    if (inv) Object.assign(inv, {name, type:invSelectedType, invested, currentValue:currentValue||invested, date, notes, grams, purity});
+    if (inv) Object.assign(inv, {name, type:invSelectedType, invested, currentValue:currentValue||invested, date, notes, grams, purity, updatedAt: Date.now()});
   } else {
     investments.push({
+      updatedAt: Date.now(),
       id: uid(), name, type: invSelectedType,
       invested, currentValue: currentValue || invested,
       date: date || new Date().toISOString().slice(0,10),
@@ -6233,7 +6246,7 @@ function saveReminder() {
     const r = state.reminders.find(x => x.id === _editingReminderId);
     if (r) Object.assign(r, { title, note, date, time, repeat });
   } else {
-    state.reminders.push({ id: uid(), title, note, date, time, repeat, createdAt: Date.now() });
+    state.reminders.push({ id: uid(), title, note, date, time, repeat, createdAt: Date.now(), updatedAt: Date.now() });
   }
   save();
   scheduleAllReminders();
@@ -6547,6 +6560,7 @@ function saveParked() {
 
   const compounding = (_parkedSelectedType === 'fd') ? document.getElementById('parkedCompounding').value : '';
   const fields = {
+    updatedAt: Date.now(),
     type: _parkedSelectedType, name, amount, date, notes,
     grams, purity, interestPct, closeDate, interestUpfront, compounding,
     receipt: _parkedReceiptData || '',
