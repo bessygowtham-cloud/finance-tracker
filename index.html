@@ -7278,13 +7278,25 @@ function renderTripList() {
     return;
   }
   el.innerHTML = trips.map(t => `
-    <div class="parked-item" onclick="openTripDetail('${t.id}')" style="cursor:pointer;">
-      <div class="parked-item-info">
+    <div class="parked-item" style="cursor:pointer;">
+      <div class="parked-item-info" onclick="openTripDetail('${t.id}')">
         <div class="parked-item-name">${escapeHtml(t.name)}</div>
         <div class="parked-item-meta">Tap to open</div>
       </div>
-      <div style="color:var(--muted);font-size:18px;">›</div>
+      <button onclick="event.stopPropagation();removeTripFromList('${t.id}','${t.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:4px 8px;flex-shrink:0;">✕</button>
     </div>`).join('');
+}
+// Shared by the list's ✕ and the detail view's Delete Trip button.
+function deleteTripById(id) {
+  tombstone(id);
+  state.myTrips = (state.myTrips || []).filter(t => t.id !== id);
+  save();
+  db.collection('trips').doc(id).delete().catch(e => console.error('Trip delete error:', e));
+}
+function removeTripFromList(id, name) {
+  if (!confirm(`Delete "${name}"? This also removes it from the cloud — a share link for it would stop working.`)) return;
+  deleteTripById(id);
+  renderTripList();
 }
 function openNewTripModal() {
   document.getElementById('newTripName').value = '';
@@ -7308,13 +7320,25 @@ function createTrip() {
   state.myTrips.push({ id, name });
   save();
   document.getElementById('newTripModal').classList.remove('open');
-  saveTripDoc(trip).then(() => openTripDetail(id));
+  saveTripDoc(trip).then(ok => {
+    // Firestore rejected the write (e.g. rules not published yet) — undo the
+    // local reference so the list can't end up with a trip that opens to
+    // nothing, instead of leaving a permanent dead entry.
+    if (!ok) {
+      state.myTrips = state.myTrips.filter(t => t.id !== id);
+      save();
+      renderTripList();
+      return;
+    }
+    openTripDetail(id);
+  });
 }
 function saveTripDoc(trip) {
   trip.updatedAt = Date.now();
-  return db.collection('trips').doc(trip.id).set(trip).catch(e => {
+  return db.collection('trips').doc(trip.id).set(trip).then(() => true).catch(e => {
     console.error('Trip save error:', e);
     alert('Could not save the trip to the cloud: ' + e.message);
+    return false;
   });
 }
 function openTripDetail(id) {
@@ -7327,7 +7351,15 @@ function openTripDetail(id) {
   document.getElementById('tripPeopleChips').innerHTML = '';
   document.getElementById('tripExpenseList').innerHTML = '';
   db.collection('trips').doc(id).get().then(doc => {
-    if (!doc.exists) { alert('Trip not found — it may have been deleted.'); closeTripDetail(); return; }
+    if (!doc.exists) {
+      if (confirm('This trip could not be found in the cloud (it may have failed to save). Remove it from your list?')) {
+        state.myTrips = (state.myTrips || []).filter(t => t.id !== id);
+        save();
+      }
+      closeTripDetail();
+      renderTripList();
+      return;
+    }
     _activeTrip = doc.data();
     if (!Array.isArray(_activeTrip.people))   _activeTrip.people = [];
     if (!Array.isArray(_activeTrip.expenses)) _activeTrip.expenses = [];
@@ -7485,11 +7517,7 @@ function renderTripBalances() {
 }
 function deleteTrip() {
   if (!_activeTripId) return;
-  const id = _activeTripId;
-  tombstone(id);
-  state.myTrips = (state.myTrips || []).filter(t => t.id !== id);
-  save();
-  db.collection('trips').doc(id).delete().catch(e => console.error('Trip delete error:', e));
+  deleteTripById(_activeTripId);
   closeTripDetail();
   renderTripList();
 }
