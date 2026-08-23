@@ -1853,6 +1853,20 @@
   </div>
 
   <div class="settings-section">
+    <div class="settings-section-title">Group Trips</div>
+    <div class="settings-card">
+      <div class="settings-row" onclick="navigate('trips')" style="cursor:pointer;">
+        <span class="settings-icon">🧳</span>
+        <div>
+          <div class="settings-label">Trip Splitter</div>
+          <div class="settings-sub">Split trip expenses with friends, share a link</div>
+        </div>
+        <span style="color:var(--muted);">›</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-section">
     <div class="settings-section-title">Accounts</div>
     <div id="accountsList"></div>
   </div>
@@ -2054,6 +2068,85 @@
 
   <!-- Floating Add Button -->
   <button class="purch-fab" onclick="openAddPurchaseModal()">+</button>
+</div>
+
+<!-- ══════════ TRIP SPLITTER ══════════ -->
+<div class="page page-pad" id="page-trips">
+
+  <!-- Trip list view -->
+  <div id="tripListView">
+    <div id="tripListContainer"></div>
+    <button class="purch-fab" onclick="openNewTripModal()">+</button>
+  </div>
+
+  <!-- Trip detail view -->
+  <div id="tripDetailView" style="display:none;">
+    <div style="display:flex;align-items:center;gap:10px;margin:0 16px 14px;">
+      <button onclick="closeTripDetail()" style="background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;width:34px;height:34px;font-size:16px;cursor:pointer;color:var(--text);flex-shrink:0;">←</button>
+      <div style="flex:1;min-width:0;">
+        <div id="tripDetailName" style="font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+        <div id="tripDetailSub" style="font-size:12px;color:var(--muted);"></div>
+      </div>
+      <button onclick="shareTripLink()" title="Share" style="background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.35);border-radius:10px;padding:0 12px;height:34px;font-size:13px;font-weight:700;color:#059669;cursor:pointer;flex-shrink:0;">🔗 Share</button>
+    </div>
+
+    <div id="tripBalancesCard" class="chart-wrap" style="margin-top:0;"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:18px 16px 8px;">
+      <div class="chart-title" style="margin:0;">People</div>
+      <button class="add-btn-small" onclick="addTripPerson()">+ Add</button>
+    </div>
+    <div class="filter-row" id="tripPeopleChips" style="flex-wrap:wrap;overflow:visible;"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:18px 16px 8px;">
+      <div class="chart-title" style="margin:0;">Expenses</div>
+    </div>
+    <div id="tripExpenseList"></div>
+
+    <div style="margin:18px 16px 0;">
+      <button onclick="if(confirm(&quot;Delete this whole trip? This can't be undone.&quot;))deleteTrip()" style="width:100%;background:rgba(239,68,68,0.1);border:1.5px solid rgba(239,68,68,0.35);color:var(--expense);padding:12px 20px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;">Delete Trip</button>
+    </div>
+
+    <button class="purch-fab" onclick="openAddExpenseModal()">+</button>
+  </div>
+</div>
+
+<!-- New Trip modal -->
+<div class="modal-overlay" id="newTripModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🧳 New Trip</div>
+    <div class="form-group">
+      <label class="form-label">Trip Name</label>
+      <input type="text" class="form-input" id="newTripName" placeholder="e.g., Goa Trip 2026" />
+    </div>
+    <button class="btn-primary" onclick="createTrip()">Create Trip</button>
+  </div>
+</div>
+
+<!-- Add/Edit Trip Expense modal -->
+<div class="modal-overlay" id="tripExpenseModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="tripExpenseModalTitle">Add Expense</div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input type="text" class="form-input" id="tripExpenseDesc" placeholder="e.g., Dinner, Cab, Hotel" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Amount (₹)</label>
+      <input type="number" class="form-input" id="tripExpenseAmount" placeholder="0" inputmode="decimal" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Paid by</label>
+      <div class="sub-chips-wrap" id="tripExpensePaidByChips"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Split among <span style="font-weight:400;text-transform:none;letter-spacing:0;">(tap to toggle)</span></label>
+      <div class="sub-chips-wrap" id="tripExpenseSplitChips"></div>
+    </div>
+    <button class="btn-primary" onclick="saveTripExpense()">Save Expense</button>
+  </div>
 </div>
 
 <!-- ══════════ PROFILE 2: INVESTMENTS ══════════ -->
@@ -2920,6 +3013,7 @@ function startCloudSync(uid) {
     state.parkedMoney   = unionRecords(d.parkedMoney,  state.parkedMoney);
     state.bankTags      = mergeArr(d.bankTags,         state.bankTags);
     state.creditCards   = mergeArr(d.creditCards,      state.creditCards);
+    state.myTrips       = unionRecords(d.myTrips,      state.myTrips);
     investments         = unionRecords(d.investments,  investments);
     localStorage.setItem('investmentState', JSON.stringify(investments));
 
@@ -2978,6 +3072,7 @@ function saveToCloud() {
       profile3Name:    state.profile3Name,
       creditCards:     state.creditCards,
       deletedIds:      state.deletedIds || [],
+      myTrips:         state.myTrips || [],
       investments:     (typeof investments !== 'undefined' ? investments : []),
     });
     // A Firestore document is capped at ~1 MiB. Bill/receipt images are stored
@@ -3075,6 +3170,11 @@ let state = {
   deletedIds: [],
   bankTags: ['SC', 'Axis Bank', 'HDFC'],
   creditCards: ['HDFC', 'Axis', 'ICICI'],
+  // Lightweight refs only — {id, name}. Each trip's people/expenses live in
+  // their own Firestore doc (trips/{id}), fetched on demand, so a trip with a
+  // long expense history can't bloat the ~1MB synced blob the way bill photos
+  // once did, and it can carry a public read-only rule the personal blob can't.
+  myTrips: [],
 };
 
 // ══════════════════ PERSISTENCE ══════════════════
@@ -3099,6 +3199,7 @@ function load() {
     state.reminders      = p.reminders      || [];
     state.parkedMoney    = p.parkedMoney    || [];
     state.deletedIds     = p.deletedIds     || [];
+    state.myTrips        = p.myTrips        || [];
     state.profile3Name   = p.profile3Name   || 'Jayanthi';
     state.darkMode       = p.darkMode       || false;
   }
@@ -3152,6 +3253,7 @@ function buildSnapshot() {
     subCategories: state.subCategories, familyMembers: state.familyMembers,
     bankTags: state.bankTags, creditCards: state.creditCards,
     deletedIds: state.deletedIds,
+    myTrips: state.myTrips,
     purchases: state.purchases,
     reminders: state.reminders,
     parkedMoney: state.parkedMoney,
@@ -3214,6 +3316,7 @@ function applySnapshot(s) {
   state.reminders     = s.reminders     || [];
   state.parkedMoney   = s.parkedMoney   || [];
   state.deletedIds    = s.deletedIds    || [];
+  state.myTrips       = s.myTrips       || [];
   state.profile3Name  = s.profile3Name  || 'Other Person';
   if (Array.isArray(s.investments)) {
     investments = s.investments;
@@ -3349,7 +3452,7 @@ function accountBalance(id) {
 // ══════════════════ NAVIGATION ══════════════════
 // History renders its own month pill inside the filter row instead
 const HEADER_MONTH_PILL_PAGES = ['home','charts'];
-const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings',purchases:'My Purchases',investments:'Investments',parked:'Parked Money'};
+const PAGE_TITLES = {home:'Dashboard',add:'Add Transaction',txns:'Transactions',charts:'Analytics',settings:'Settings',purchases:'My Purchases',investments:'Investments',parked:'Parked Money',trips:'Trip Splitter'};
 const PARKED_TYPES = [
   {id:'loan',        emoji:'🤝', name:'Loan Given',  color:'#60A5FA'},
   {id:'fd',          emoji:'🔒', name:'FD',          color:'#FBBF24'},
@@ -3369,6 +3472,7 @@ function navigate(page) {
   if (page==='purchases') renderPurchases();
   if (page==='investments') { renderInvestments(); }
   if (page==='parked') { renderParked(); if (!_goldRateCache) refreshGoldRate(false).then(()=>renderParked()); }
+  if (page==='trips') { closeTripDetail(); renderTripList(); }
   // Update the profile pill in the header to reflect current profile context
   updateProfilePill(page);
   // Show month picker in header only on month-based pages
@@ -7151,6 +7255,308 @@ function removeCreditCard(name) {
   renderSettings();
 }
 
+// ══════════════════ TRIP SPLITTER ══════════════════
+// Each trip is its own Firestore doc (trips/{id}), separate from the personal
+// synced blob, for two reasons: (1) it needs a PUBLIC read rule so a friend can
+// open the share link with no login, which the per-user blob's rule can't allow
+// without exposing all of your finance data; (2) a trip's expense history grows
+// independently and could otherwise push the ~1MB personal blob over its limit
+// the way bill photos once did. state.myTrips holds only lightweight {id,name}
+// refs so the trip list still shows up on every signed-in device.
+let _activeTripId = null;
+let _activeTrip = null;
+let _tripSaveTimer = null;
+let _tripExpensePaidBy = null;
+let _tripExpenseSplit = [];
+
+function renderTripList() {
+  const el = document.getElementById('tripListContainer');
+  if (!el) return;
+  const trips = state.myTrips || [];
+  if (!trips.length) {
+    el.innerHTML = '<div class="empty-state"><div class="emoji">🧳</div><p>No trips yet.<br>Tap <b>+</b> to start splitting expenses with friends.</p></div>';
+    return;
+  }
+  el.innerHTML = trips.map(t => `
+    <div class="parked-item" onclick="openTripDetail('${t.id}')" style="cursor:pointer;">
+      <div class="parked-item-info">
+        <div class="parked-item-name">${escapeHtml(t.name)}</div>
+        <div class="parked-item-meta">Tap to open</div>
+      </div>
+      <div style="color:var(--muted);font-size:18px;">›</div>
+    </div>`).join('');
+}
+function openNewTripModal() {
+  document.getElementById('newTripName').value = '';
+  document.getElementById('newTripModal').classList.add('open');
+}
+function createTrip() {
+  const name = document.getElementById('newTripName').value.trim();
+  if (!name) return alert('Please enter a trip name.');
+  if (!currentUser) {
+    alert('Please sign in first (Settings → ☁️ Sign in, top right). Trips are shared via the cloud so your friends can open the link without an account.');
+    return;
+  }
+  const id = uid();
+  const meName = (currentUser.displayName || 'You').split(' ')[0];
+  const trip = {
+    id, name, ownerUid: currentUser.uid,
+    people: [{ id: uid(), name: meName }],
+    expenses: [],
+    createdAt: Date.now(), updatedAt: Date.now(),
+  };
+  state.myTrips.push({ id, name });
+  save();
+  document.getElementById('newTripModal').classList.remove('open');
+  saveTripDoc(trip).then(() => openTripDetail(id));
+}
+function saveTripDoc(trip) {
+  trip.updatedAt = Date.now();
+  return db.collection('trips').doc(trip.id).set(trip).catch(e => {
+    console.error('Trip save error:', e);
+    alert('Could not save the trip to the cloud: ' + e.message);
+  });
+}
+function openTripDetail(id) {
+  _activeTripId = id;
+  document.getElementById('tripListView').style.display = 'none';
+  document.getElementById('tripDetailView').style.display = '';
+  document.getElementById('tripDetailName').textContent = 'Loading…';
+  document.getElementById('tripDetailSub').textContent = '';
+  document.getElementById('tripBalancesCard').innerHTML = '';
+  document.getElementById('tripPeopleChips').innerHTML = '';
+  document.getElementById('tripExpenseList').innerHTML = '';
+  db.collection('trips').doc(id).get().then(doc => {
+    if (!doc.exists) { alert('Trip not found — it may have been deleted.'); closeTripDetail(); return; }
+    _activeTrip = doc.data();
+    if (!Array.isArray(_activeTrip.people))   _activeTrip.people = [];
+    if (!Array.isArray(_activeTrip.expenses)) _activeTrip.expenses = [];
+    renderTripDetail();
+  }).catch(e => {
+    console.error('Trip load error:', e);
+    alert('Could not load this trip: ' + e.message);
+    closeTripDetail();
+  });
+}
+function closeTripDetail() {
+  _activeTripId = null; _activeTrip = null;
+  const lv = document.getElementById('tripListView'), dv = document.getElementById('tripDetailView');
+  if (lv) lv.style.display = '';
+  if (dv) dv.style.display = 'none';
+}
+function persistActiveTrip() {
+  if (!_activeTrip) return;
+  clearTimeout(_tripSaveTimer);
+  _tripSaveTimer = setTimeout(() => saveTripDoc(_activeTrip), 500);
+}
+function renderTripDetail() {
+  if (!_activeTrip) return;
+  document.getElementById('tripDetailName').textContent = _activeTrip.name;
+  document.getElementById('tripDetailSub').textContent =
+    `${_activeTrip.people.length} people · ${_activeTrip.expenses.length} expense${_activeTrip.expenses.length!==1?'s':''}`;
+
+  document.getElementById('tripPeopleChips').innerHTML = _activeTrip.people.length
+    ? _activeTrip.people.map(p => `
+        <span class="filter-chip" style="display:inline-flex;align-items:center;gap:6px;cursor:default;">
+          ${escapeHtml(p.name)}
+          <span onclick="removeTripPerson('${p.id}')" style="cursor:pointer;color:#ef4444;font-weight:800;">✕</span>
+        </span>`).join('')
+    : '<div class="empty-inner">No people yet. Tap <b>+ Add</b>.</div>';
+
+  const sorted = [..._activeTrip.expenses].sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+  document.getElementById('tripExpenseList').innerHTML = sorted.length ? sorted.map(e => {
+    const payer = _activeTrip.people.find(p => p.id === e.paidBy);
+    const n = (e.splitAmong||[]).length;
+    return `<div class="txn-item" style="padding:12px 16px;border-bottom:1px solid var(--border);">
+      <div class="txn-info">
+        <div class="txn-name">${escapeHtml(e.desc||'Expense')}</div>
+        <div class="txn-meta">Paid by ${escapeHtml(payer?payer.name:'?')} · split ${n} way${n!==1?'s':''}</div>
+      </div>
+      <div class="txn-amount expense">${fmt(e.amount)}</div>
+      <button onclick="deleteTripExpense('${e.id}')" style="background:none;border:none;color:#ef4444;font-size:16px;cursor:pointer;padding:4px 4px 4px 10px;flex-shrink:0;">✕</button>
+    </div>`;
+  }).join('') : '<div class="empty-state"><div class="emoji">🧾</div><p>No expenses yet.</p></div>';
+
+  renderTripBalances();
+}
+function addTripPerson() {
+  if (!_activeTrip) return;
+  const name = prompt("Friend's name:");
+  if (!name || !name.trim()) return;
+  _activeTrip.people.push({ id: uid(), name: name.trim() });
+  persistActiveTrip();
+  renderTripDetail();
+}
+function removeTripPerson(personId) {
+  if (!_activeTrip) return;
+  const usedIn = _activeTrip.expenses.some(e => e.paidBy===personId || (e.splitAmong||[]).includes(personId));
+  if (usedIn && !confirm('This person is part of existing expenses. Remove them anyway? Their share stays recorded in those expenses.')) return;
+  _activeTrip.people = _activeTrip.people.filter(p => p.id !== personId);
+  persistActiveTrip();
+  renderTripDetail();
+}
+function openAddExpenseModal() {
+  if (!_activeTrip) return;
+  if (!_activeTrip.people.length) { alert('Add at least one person first.'); return; }
+  document.getElementById('tripExpenseModalTitle').textContent = 'Add Expense';
+  document.getElementById('tripExpenseDesc').value = '';
+  document.getElementById('tripExpenseAmount').value = '';
+  _tripExpensePaidBy = _activeTrip.people[0].id;
+  _tripExpenseSplit = _activeTrip.people.map(p => p.id);
+  renderTripExpenseModalChips();
+  document.getElementById('tripExpenseModal').classList.add('open');
+}
+function renderTripExpenseModalChips() {
+  document.getElementById('tripExpensePaidByChips').innerHTML = _activeTrip.people.map(p =>
+    `<button class="sub-chip ${_tripExpensePaidBy===p.id?'selected':''}" onclick="setTripExpensePaidBy('${p.id}')">${escapeHtml(p.name)}</button>`
+  ).join('');
+  document.getElementById('tripExpenseSplitChips').innerHTML = _activeTrip.people.map(p =>
+    `<button class="sub-chip ${_tripExpenseSplit.includes(p.id)?'selected':''}" onclick="toggleTripExpenseSplit('${p.id}')">${escapeHtml(p.name)}</button>`
+  ).join('');
+}
+function setTripExpensePaidBy(id) { _tripExpensePaidBy = id; renderTripExpenseModalChips(); }
+function toggleTripExpenseSplit(id) {
+  _tripExpenseSplit = _tripExpenseSplit.includes(id)
+    ? _tripExpenseSplit.filter(x => x !== id)
+    : [..._tripExpenseSplit, id];
+  renderTripExpenseModalChips();
+}
+function saveTripExpense() {
+  const desc = document.getElementById('tripExpenseDesc').value.trim();
+  const amount = parseFloat(document.getElementById('tripExpenseAmount').value);
+  if (!amount || amount <= 0) return alert('Please enter a valid amount.');
+  if (!_tripExpensePaidBy) return alert('Please select who paid.');
+  if (!_tripExpenseSplit.length) return alert('Please select at least one person to split among.');
+  _activeTrip.expenses.push({
+    id: uid(), desc: desc || 'Expense', amount,
+    paidBy: _tripExpensePaidBy, splitAmong: [..._tripExpenseSplit],
+    date: new Date().toISOString().slice(0,10), createdAt: Date.now(),
+  });
+  persistActiveTrip();
+  document.getElementById('tripExpenseModal').classList.remove('open');
+  renderTripDetail();
+}
+function deleteTripExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  _activeTrip.expenses = _activeTrip.expenses.filter(e => e.id !== id);
+  persistActiveTrip();
+  renderTripDetail();
+}
+// Net balance per person, then a greedy match of largest debtor to largest
+// creditor so the summary reads as a short list of transfers rather than
+// every pairwise share.
+function computeTripBalances(trip) {
+  const net = {};
+  trip.people.forEach(p => { net[p.id] = 0; });
+  trip.expenses.forEach(e => {
+    const n = (e.splitAmong||[]).length || 1;
+    const share = e.amount / n;
+    net[e.paidBy] = (net[e.paidBy]||0) + e.amount;
+    (e.splitAmong||[]).forEach(pid => { net[pid] = (net[pid]||0) - share; });
+  });
+  const creditors = Object.entries(net).filter(([,v]) => v > 0.5).map(([id,v]) => ({id, amt:v})).sort((a,b)=>b.amt-a.amt);
+  const debtors   = Object.entries(net).filter(([,v]) => v < -0.5).map(([id,v]) => ({id, amt:-v})).sort((a,b)=>b.amt-a.amt);
+  const settlements = [];
+  let ci = 0, di = 0;
+  while (ci < creditors.length && di < debtors.length) {
+    const c = creditors[ci], d = debtors[di];
+    const amt = Math.min(c.amt, d.amt);
+    settlements.push({ from: d.id, to: c.id, amount: amt });
+    c.amt -= amt; d.amt -= amt;
+    if (c.amt < 0.5) ci++;
+    if (d.amt < 0.5) di++;
+  }
+  return { net, settlements };
+}
+function renderTripBalances() {
+  const el = document.getElementById('tripBalancesCard');
+  if (!el || !_activeTrip) return;
+  const { settlements } = computeTripBalances(_activeTrip);
+  const nameOf = id => { const p = _activeTrip.people.find(x => x.id===id); return p ? p.name : '?'; };
+  const total = _activeTrip.expenses.reduce((s,e) => s+e.amount, 0);
+  let html = `<div class="chart-title">Total spent: ${fmt(total)}</div>`;
+  html += settlements.length
+    ? settlements.map(s => `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;">
+        <span><b>${escapeHtml(nameOf(s.from))}</b> owes <b>${escapeHtml(nameOf(s.to))}</b></span>
+        <span style="font-weight:800;color:var(--expense);">${fmt(s.amount)}</span>
+      </div>`).join('')
+    : '<div class="no-data">Everyone is settled up 🎉</div>';
+  el.innerHTML = html;
+}
+function deleteTrip() {
+  if (!_activeTripId) return;
+  const id = _activeTripId;
+  tombstone(id);
+  state.myTrips = (state.myTrips || []).filter(t => t.id !== id);
+  save();
+  db.collection('trips').doc(id).delete().catch(e => console.error('Trip delete error:', e));
+  closeTripDetail();
+  renderTripList();
+}
+function shareTripLink() {
+  if (!_activeTripId) return;
+  const url = `${location.origin}${location.pathname}?trip=${_activeTripId}`;
+  const msg = 'Link copied! Send it to your friends — they can open it on their phone with no sign-in needed:\n\n' + url;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => alert(msg), () => prompt('Copy this link:', url));
+  } else {
+    prompt('Copy this link:', url);
+  }
+}
+
+// ── Public read-only view for friends: no login, no app shell, just the numbers.
+// Triggered by ?trip=ID before any other init runs; replaces the whole page. ──
+function maybeShowSharedTrip() {
+  const tripId = new URLSearchParams(location.search).get('trip');
+  if (!tripId) return false;
+  document.body.innerHTML = `<div id="sharedTripRoot" style="max-width:480px;margin:0 auto;padding:24px 16px 60px;">
+    <div style="text-align:center;padding:60px 0;color:#888;">Loading trip…</div>
+  </div>`;
+  db.collection('trips').doc(tripId).get().then(doc => {
+    const root = document.getElementById('sharedTripRoot');
+    if (!doc.exists) { root.innerHTML = '<div style="text-align:center;padding:60px 16px;color:#888;">Trip not found. Ask for a fresh link.</div>'; return; }
+    const trip = doc.data();
+    if (!Array.isArray(trip.people))   trip.people = [];
+    if (!Array.isArray(trip.expenses)) trip.expenses = [];
+    const { settlements } = computeTripBalances(trip);
+    const nameOf = id => { const p = trip.people.find(x => x.id===id); return p ? p.name : '?'; };
+    const total = trip.expenses.reduce((s,e) => s+e.amount, 0);
+    const sorted = [...trip.expenses].sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+    root.innerHTML = `
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px;">🧳 Trip Splitter · view only</div>
+        <div style="font-size:22px;font-weight:800;margin-top:4px;">${escapeHtml(trip.name)}</div>
+        <div style="font-size:13px;color:#888;margin-top:2px;">Total spent: ₹${Math.round(total).toLocaleString('en-IN')}</div>
+      </div>
+      <div style="background:#fff;border:1px solid #eee;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+        <div style="font-size:13px;font-weight:800;margin-bottom:10px;color:#111;">Who owes whom</div>
+        ${settlements.length ? settlements.map(s => `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f2f2f2;font-size:14px;color:#111;">
+            <span><b>${escapeHtml(nameOf(s.from))}</b> owes <b>${escapeHtml(nameOf(s.to))}</b></span>
+            <span style="font-weight:800;color:#dc2626;">₹${Math.round(s.amount).toLocaleString('en-IN')}</span>
+          </div>`).join('') : '<div style="color:#888;font-size:13px;">Everyone is settled up 🎉</div>'}
+      </div>
+      <div style="font-size:13px;font-weight:800;margin:0 0 10px;color:#111;">Expenses</div>
+      ${sorted.length ? sorted.map(e => {
+        const payer = trip.people.find(p => p.id===e.paidBy);
+        const n = (e.splitAmong||[]).length;
+        return `<div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:#111;">${escapeHtml(e.desc||'Expense')}</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;">Paid by ${escapeHtml(payer?payer.name:'?')} · split ${n} way${n!==1?'s':''}</div>
+          </div>
+          <div style="font-weight:800;color:#111;">₹${Math.round(e.amount).toLocaleString('en-IN')}</div>
+        </div>`;
+      }).join('') : '<div style="color:#888;font-size:13px;">No expenses yet.</div>'}
+      <div style="text-align:center;margin-top:24px;font-size:11px;color:#bbb;">Shared read-only view · Finance Tracker</div>
+    `;
+  }).catch(e => {
+    console.error('Shared trip load error:', e);
+    const root = document.getElementById('sharedTripRoot');
+    if (root) root.innerHTML = '<div style="text-align:center;padding:60px 16px;color:#888;">Could not load this trip. Check your connection and try again.</div>';
+  });
+  return true;
+}
+
 // ══════════════════ INJECT CLOSE-X BUTTONS INTO ALL MODALS ══════════════════
 function injectModalCloseButtons() {
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
@@ -7172,18 +7578,22 @@ function injectModalCloseButtons() {
 }
 
 // ══════════════════ INIT ══════════════════
-load();
-loadInvestments();
-integrityCheckRestore();
-autoApplyDueRecurring();
-autoCompressStoredImagesOnce();
-autoRecoverSubCategoriesOnce();
-renderDashboard();
-updateMonthPill();
-updateProfilePill('home');
-scheduleAllReminders();
-injectModalCloseButtons();
-initSettingsAccordion();
+// A ?trip=ID link takes over the whole page for a friend with no account and
+// no app — skip loading/rendering the normal app shell entirely in that case.
+if (!maybeShowSharedTrip()) {
+  load();
+  loadInvestments();
+  integrityCheckRestore();
+  autoApplyDueRecurring();
+  autoCompressStoredImagesOnce();
+  autoRecoverSubCategoriesOnce();
+  renderDashboard();
+  updateMonthPill();
+  updateProfilePill('home');
+  scheduleAllReminders();
+  injectModalCloseButtons();
+  initSettingsAccordion();
+}
 
 // ── Robust page persistence: write on every navigate AND on unload/visibility change ──
 window.addEventListener('beforeunload', () => {
