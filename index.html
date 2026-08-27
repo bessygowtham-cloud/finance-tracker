@@ -1707,7 +1707,7 @@
       <div style="display:flex;align-items:center;gap:10px;">
         <div class="amount-input-wrap" style="flex:1;">
           <span class="amount-currency">₹</span>
-          <input type="number" class="form-input" id="addAmount" placeholder="0" inputmode="decimal" />
+          <input type="text" class="form-input" id="addAmount" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
         </div>
         <div class="add-type-pill" style="margin:0;flex-shrink:0;">
           <button class="active expense" id="typeExpense" onclick="setType('expense')">Exp</button>
@@ -2131,7 +2131,7 @@
     </div>
     <div class="form-group">
       <label class="form-label">Amount (₹)</label>
-      <input type="number" class="form-input" id="tripExpenseAmount" placeholder="0" inputmode="decimal" />
+      <input type="text" class="form-input" id="tripExpenseAmount" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
     </div>
     <div class="form-group">
       <label class="form-label">Paid by</label>
@@ -2211,7 +2211,7 @@
 
     <div class="form-group">
       <label class="form-label">Amount Invested (₹)</label>
-      <input type="number" class="form-input" id="invInvested" placeholder="0" inputmode="decimal" />
+      <input type="text" class="form-input" id="invInvested" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
     </div>
 
     <!-- Gold-specific fields -->
@@ -2236,7 +2236,7 @@
 
     <div class="form-group" id="invCurrentGroup">
       <label class="form-label">Current Value (₹)</label>
-      <input type="number" class="form-input" id="invCurrent" placeholder="0" inputmode="decimal" />
+      <input type="text" class="form-input" id="invCurrent" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
     </div>
 
     <div class="form-group">
@@ -2334,11 +2334,11 @@
     <div style="display:flex;gap:10px;">
       <div class="form-group" style="flex:1;">
         <label class="form-label">Amount (₹)</label>
-        <input type="number" class="form-input" id="parkedAmount" placeholder="0" inputmode="decimal" oninput="updateParkedMonthlyPreview()" />
+        <input type="text" class="form-input" id="parkedAmount" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this);updateParkedMonthlyPreview()" />
       </div>
       <div class="form-group" id="parkedUpfrontField" style="display:none;flex:1;">
         <label class="form-label">Upfront Interest (₹)</label>
-        <input type="number" class="form-input" id="parkedInterestUpfront" placeholder="0" inputmode="decimal" />
+        <input type="text" class="form-input" id="parkedInterestUpfront" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
       </div>
     </div>
 
@@ -2502,7 +2502,7 @@
     <div class="form-group">
       <div class="amount-input-wrap">
         <span class="amount-currency">₹</span>
-        <input type="number" class="form-input" id="recAmount" placeholder="0" inputmode="decimal" />
+        <input type="text" class="form-input" id="recAmount" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
       </div>
     </div>
 
@@ -2575,14 +2575,14 @@
       <label class="form-label">Target Amount (₹)</label>
       <div class="amount-input-wrap">
         <span class="amount-currency">₹</span>
-        <input type="number" class="form-input" id="goalTarget" placeholder="0" inputmode="decimal" />
+        <input type="text" class="form-input" id="goalTarget" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">Already Saved (₹)</label>
       <div class="amount-input-wrap">
         <span class="amount-currency">₹</span>
-        <input type="number" class="form-input" id="goalSaved" placeholder="0" inputmode="decimal" />
+        <input type="text" class="form-input" id="goalSaved" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
       </div>
     </div>
     <div class="form-group">
@@ -2655,7 +2655,7 @@
       <label class="form-label">Amount to Add (₹)</label>
       <div class="amount-input-wrap">
         <span class="amount-currency">₹</span>
-        <input type="number" class="form-input" id="addFundsAmount" placeholder="0" inputmode="decimal" />
+        <input type="text" class="form-input" id="addFundsAmount" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
       </div>
     </div>
     <button class="btn-primary" onclick="confirmAddFunds()">Add Funds</button>
@@ -2673,7 +2673,7 @@
       <div style="display:flex;align-items:center;gap:10px;">
         <div class="amount-input-wrap" style="flex:1;">
           <span class="amount-currency">₹</span>
-          <input type="number" class="form-input" id="editAmount" placeholder="0" inputmode="decimal" />
+          <input type="text" class="form-input" id="editAmount" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
         </div>
         <div class="add-type-pill" style="margin:0;flex-shrink:0;">
           <button id="editTypeExpense" onclick="setEditType('expense')">Exp</button>
@@ -2761,7 +2761,7 @@
       <label class="form-label">Amount Paid</label>
       <div class="amount-input-wrap">
         <span class="amount-currency">₹</span>
-        <input type="number" class="form-input" id="purchAmount" placeholder="0" inputmode="decimal" />
+        <input type="text" class="form-input" id="purchAmount" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
       </div>
     </div>
 
@@ -3424,6 +3424,21 @@ function importBackupFile(input) {
 function fmt(n) {
   return '₹' + Math.round(Math.abs(n||0)).toLocaleString('en-IN');
 }
+// Amount inputs are type="text" so they can show live Indian comma grouping
+// (2,00,000) as the user types — parseAmt strips those commas back out before
+// parsing, since every amount field's value must go through this, not parseFloat.
+function parseAmt(v) { return parseFloat(String(v==null?'':v).replace(/,/g,'')) || 0; }
+function formatAmtInput(el) {
+  if (!el) return;
+  const atEnd = el.selectionStart === el.value.length;
+  let raw = el.value.replace(/[^0-9.]/g, '');
+  const dot = raw.indexOf('.');
+  let intPart = dot === -1 ? raw : raw.slice(0, dot);
+  let decPart = dot === -1 ? '' : '.' + raw.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+  intPart = intPart.replace(/^0+(?=\d)/, '');
+  el.value = (intPart ? Number(intPart).toLocaleString('en-IN') : '') + decPart;
+  if (atEnd) { const p = el.value.length; el.setSelectionRange && el.setSelectionRange(p, p); }
+}
 function monthTxns(account) {
   const acc = account !== undefined ? account : state.activeAccount;
   return state.transactions.filter(t => {
@@ -3771,7 +3786,7 @@ function selectCat(id) {
 }
 
 function saveTransaction() {
-  const amount  = parseFloat(document.getElementById('addAmount').value);
+  const amount  = parseAmt(document.getElementById('addAmount').value);
   const note    = document.getElementById('addNote').value.trim();
   const date    = document.getElementById('addDate').value;
   if (!amount||amount<=0) return alert('Please enter a valid amount.');
@@ -3831,7 +3846,7 @@ function openEditTxn(id) {
   editState.accountId      = t.account || state.accounts[0]?.id;
 
   // Populate fields
-  document.getElementById('editAmount').value = t.amount;
+  document.getElementById('editAmount').value = Number(t.amount).toLocaleString('en-IN');
   document.getElementById('editNote').value   = t.note || '';
   document.getElementById('editDate').value   = t.date;
   if (t.creditDueDate) document.getElementById('editCreditDueDate').value = t.creditDueDate;
@@ -3985,7 +4000,7 @@ function deleteFromEditModal() {
   if (a && a.id === 'page-txns') renderTxns();
 }
 function saveEditTxn() {
-  const amount = parseFloat(document.getElementById('editAmount').value);
+  const amount = parseAmt(document.getElementById('editAmount').value);
   const note   = document.getElementById('editNote').value.trim();
   const date   = document.getElementById('editDate').value;
   if (!amount||amount<=0) return alert('Please enter a valid amount.');
@@ -4370,11 +4385,11 @@ function renderAllocEdit() {
     EXPENSE_CATS.map(c=>`<div class="alloc-edit-item">
       <span class="alloc-emoji">${c.emoji}</span>
       <span class="alloc-edit-name">${c.name}</span>
-      <input type="number" class="alloc-edit-input" id="alloc_${c.id}" value="${state.allocations[c.id]||''}" placeholder="0" inputmode="decimal" />
+      <input type="text" class="alloc-edit-input" id="alloc_${c.id}" value="${state.allocations[c.id] ? Number(state.allocations[c.id]).toLocaleString('en-IN') : ''}" placeholder="0" inputmode="decimal" oninput="formatAmtInput(this)" />
     </div>`).join('');
 }
 function saveAllocations() {
-  EXPENSE_CATS.forEach(c=>{state.allocations[c.id]=parseFloat(document.getElementById('alloc_'+c.id).value)||0;});
+  EXPENSE_CATS.forEach(c=>{state.allocations[c.id]=parseAmt(document.getElementById('alloc_'+c.id).value);});
   save(); alert('Budget saved!'); navigate('home');
 }
 
@@ -4444,7 +4459,7 @@ function openRecurringModal(id) {
     state.recSelectedBank = r.bank || null;
     state.recSelectedSubCat = r.subCategory || null;
     document.getElementById('recName').value   = r.name || '';
-    document.getElementById('recAmount').value = r.amount || '';
+    document.getElementById('recAmount').value = r.amount ? Number(r.amount).toLocaleString('en-IN') : '';
     document.getElementById('recDay').value    = r.dayOfMonth || '';
   } else {
     state.recType='expense'; state.recSelectedCat=null;
@@ -4585,7 +4600,7 @@ function addRecCustomSubCat() {
 }
 function saveRecurring() {
   const name=document.getElementById('recName').value.trim();
-  const amount=parseFloat(document.getElementById('recAmount').value);
+  const amount=parseAmt(document.getElementById('recAmount').value);
   const day=parseInt(document.getElementById('recDay').value);
   const account=state.recAccountId || (state.accounts[0]?.id || 'wallet');
   if(!name)return alert('Please enter a name.');
@@ -4933,8 +4948,8 @@ function closeGoalModal(e) {
 }
 function saveGoal() {
   const name=document.getElementById('goalName').value.trim();
-  const target=parseFloat(document.getElementById('goalTarget').value)||0;
-  const saved=parseFloat(document.getElementById('goalSaved').value)||0;
+  const target=parseAmt(document.getElementById('goalTarget').value);
+  const saved=parseAmt(document.getElementById('goalSaved').value);
   const emoji=document.getElementById('goalEmoji').value.trim()||'🎯';
   const deadline=document.getElementById('goalDeadline').value||'';
   if(!name)return alert('Please enter a goal name.');
@@ -5400,7 +5415,7 @@ function closeAddFundsModal(e) {
     document.getElementById('addFundsModal').classList.remove('open');
 }
 function confirmAddFunds() {
-  const amount = parseFloat(document.getElementById('addFundsAmount').value)||0;
+  const amount = parseAmt(document.getElementById('addFundsAmount').value);
   if (amount <= 0) return alert('Please enter a valid amount.');
   const g = state.goals.find(x=>x.id===_addFundsGoalId);
   if (g) { g.saved = Math.min(g.target, (g.saved||0) + amount); save(); }
@@ -5547,7 +5562,7 @@ function openAddPurchaseModal(editId) {
     const p = (state.purchases||[]).find(x=>x.id===_purchEditId);
     if (p) {
       document.getElementById('purchName').value     = p.name;
-      document.getElementById('purchAmount').value   = p.amount;
+      document.getElementById('purchAmount').value   = Number(p.amount).toLocaleString('en-IN');
       document.getElementById('purchNotes').value    = p.notes || '';
       document.getElementById('purchWarranty').value = p.warranty || '';
       document.getElementById('purchDate').value     = p.date;
@@ -5670,7 +5685,7 @@ function removeBillPreview() {
 
 function savePurchase() {
   const name   = document.getElementById('purchName').value.trim();
-  const amount = parseFloat(document.getElementById('purchAmount').value);
+  const amount = parseAmt(document.getElementById('purchAmount').value);
   const date   = document.getElementById('purchDate').value;
   if (!name)         return alert('Please enter a product name.');
   if (!amount||amount<=0) return alert('Please enter a valid amount.');
@@ -5890,8 +5905,8 @@ function openInvestmentModal(id) {
     if (!inv) return;
     invSelectedType = inv.type;
     document.getElementById('invName').value = inv.name || '';
-    document.getElementById('invInvested').value = inv.invested || '';
-    document.getElementById('invCurrent').value = inv.currentValue || '';
+    document.getElementById('invInvested').value = inv.invested ? Number(inv.invested).toLocaleString('en-IN') : '';
+    document.getElementById('invCurrent').value = inv.currentValue ? Number(inv.currentValue).toLocaleString('en-IN') : '';
     document.getElementById('invDate').value = inv.date || '';
     document.getElementById('invNotes').value = inv.notes || '';
     document.getElementById('invGrams').value = inv.grams || '';
@@ -5931,8 +5946,8 @@ function toggleGoldFields() {
 
 function saveInvestment() {
   const name = document.getElementById('invName').value.trim();
-  const invested = parseFloat(document.getElementById('invInvested').value) || 0;
-  const currentValue = parseFloat(document.getElementById('invCurrent').value) || 0;
+  const invested = parseAmt(document.getElementById('invInvested').value);
+  const currentValue = parseAmt(document.getElementById('invCurrent').value);
   const date = document.getElementById('invDate').value;
   const notes = document.getElementById('invNotes').value.trim();
   if (!name) { alert('Please enter a name'); return; }
@@ -6634,12 +6649,12 @@ function openParkedModal(id) {
   _parkedSelectedType = p ? p.type : 'fd';
   _parkedPurity = (p && p.purity) ? p.purity : '22';
   document.getElementById('parkedName').value   = p ? p.name : '';
-  document.getElementById('parkedAmount').value = p ? p.amount : '';
+  document.getElementById('parkedAmount').value = p ? Number(p.amount).toLocaleString('en-IN') : '';
   document.getElementById('parkedGrams').value  = (p && p.grams) ? p.grams : '';
   document.getElementById('parkedDate').value   = p ? p.date : new Date().toISOString().slice(0,10);
   document.getElementById('parkedNotes').value  = p ? (p.notes || '') : '';
   document.getElementById('parkedInterestPct').value = (p && p.interestPct) ? p.interestPct : '';
-  document.getElementById('parkedInterestUpfront').value = (p && p.interestUpfront) ? p.interestUpfront : '';
+  document.getElementById('parkedInterestUpfront').value = (p && p.interestUpfront) ? Number(p.interestUpfront).toLocaleString('en-IN') : '';
   document.getElementById('parkedCompounding').value = (p && p.compounding) ? p.compounding : 'simple';
   document.getElementById('parkedCloseDate').value   = (p && p.closeDate) ? p.closeDate : '';
   // Receipt state
@@ -6655,7 +6670,7 @@ function updateParkedMonthlyPreview() {
   const el = document.getElementById('parkedMonthlyPreview');
   if (!el) return;
   const pct = parseFloat(document.getElementById('parkedInterestPct').value) || 0;
-  const amt = parseFloat(document.getElementById('parkedAmount').value) || 0;
+  const amt = parseAmt(document.getElementById('parkedAmount').value);
   if (pct > 0 && amt > 0) {
     const monthly = amt * (pct / 100) / 12;
     el.textContent = fmt(monthly) + '/mo';
@@ -6670,7 +6685,7 @@ function closeParkedModal(e) {
 }
 function saveParked() {
   const name   = document.getElementById('parkedName').value.trim();
-  const amount = parseFloat(document.getElementById('parkedAmount').value) || 0;
+  const amount = parseAmt(document.getElementById('parkedAmount').value);
   const date   = document.getElementById('parkedDate').value;
   const notes  = document.getElementById('parkedNotes').value.trim();
   if (!name)     { alert('Please enter a name/description'); return; }
@@ -6683,7 +6698,7 @@ function saveParked() {
   const hasInterest = _parkedSelectedType === 'loan' || _parkedSelectedType === 'fd';
   const interestPct = hasInterest ? (parseFloat(document.getElementById('parkedInterestPct').value) || 0) : 0;
   const closeDate   = hasInterest ? document.getElementById('parkedCloseDate').value : '';
-  const interestUpfront = (_parkedSelectedType === 'loan') ? (parseFloat(document.getElementById('parkedInterestUpfront').value) || 0) : 0;
+  const interestUpfront = (_parkedSelectedType === 'loan') ? parseAmt(document.getElementById('parkedInterestUpfront').value) : 0;
 
   const compounding = (_parkedSelectedType === 'fd') ? document.getElementById('parkedCompounding').value : '';
   const fields = {
@@ -7474,7 +7489,7 @@ function openEditExpenseModal(id) {
   _tripExpenseEditId = id;
   document.getElementById('tripExpenseModalTitle').textContent = 'Edit Expense';
   document.getElementById('tripExpenseDesc').value = e.desc || '';
-  document.getElementById('tripExpenseAmount').value = e.amount;
+  document.getElementById('tripExpenseAmount').value = Number(e.amount).toLocaleString('en-IN');
   // Fall back sensibly if the payer or a split member was since removed from the trip
   _tripExpensePaidBy = _activeTrip.people.some(p => p.id === e.paidBy) ? e.paidBy : _activeTrip.people[0].id;
   const validIds = new Set(_activeTrip.people.map(p => p.id));
@@ -7500,7 +7515,7 @@ function toggleTripExpenseSplit(id) {
 }
 function saveTripExpense() {
   const desc = document.getElementById('tripExpenseDesc').value.trim();
-  const amount = parseFloat(document.getElementById('tripExpenseAmount').value);
+  const amount = parseAmt(document.getElementById('tripExpenseAmount').value);
   if (!amount || amount <= 0) return alert('Please enter a valid amount.');
   if (!_tripExpensePaidBy) return alert('Please select who paid.');
   if (!_tripExpenseSplit.length) return alert('Please select at least one person to split among.');
