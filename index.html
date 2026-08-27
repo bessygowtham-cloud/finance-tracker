@@ -3261,7 +3261,21 @@ function buildSnapshot() {
   };
 }
 function save() {
-  localStorage.setItem('financeState', JSON.stringify(buildSnapshot()));
+  try {
+    localStorage.setItem('financeState', JSON.stringify(buildSnapshot()));
+  } catch (e) {
+    // Most likely the device's localStorage quota is full (rolling backups +
+    // receipt photos add up) — free the backups first and retry once before
+    // giving up, so a single big receipt doesn't silently strand the modal.
+    console.error('Local save failed, retrying after clearing backups:', e);
+    try {
+      localStorage.removeItem('financeBackups');
+      localStorage.setItem('financeState', JSON.stringify(buildSnapshot()));
+    } catch (e2) {
+      alert('Could not save — your device storage is full. Try removing an old receipt photo, then try again.');
+      throw e2;
+    }
+  }
   saveRollingBackup();
   saveToCloud();
 }
