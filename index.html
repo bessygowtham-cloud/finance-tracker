@@ -7268,6 +7268,7 @@ let _activeTrip = null;
 let _tripSaveTimer = null;
 let _tripExpensePaidBy = null;
 let _tripExpenseSplit = [];
+let _tripExpenseEditId = null; // null = adding a new expense, else the id being edited
 
 function renderTripList() {
   const el = document.getElementById('tripListContainer');
@@ -7405,7 +7406,8 @@ function renderTripDetail() {
         <div class="txn-meta">Paid by ${escapeHtml(payer?payer.name:'?')} · split ${n} way${n!==1?'s':''}</div>
       </div>
       <div class="txn-amount expense">${fmt(e.amount)}</div>
-      <button onclick="deleteTripExpense('${e.id}')" style="background:none;border:none;color:#ef4444;font-size:16px;cursor:pointer;padding:4px 4px 4px 10px;flex-shrink:0;">✕</button>
+      <button onclick="openEditExpenseModal('${e.id}')" style="background:none;border:none;color:var(--primary);font-size:15px;cursor:pointer;padding:4px 4px 4px 10px;flex-shrink:0;">✏️</button>
+      <button onclick="deleteTripExpense('${e.id}')" style="background:none;border:none;color:#ef4444;font-size:16px;cursor:pointer;padding:4px 0 4px 4px;flex-shrink:0;">✕</button>
     </div>`;
   }).join('') : '<div class="empty-state"><div class="emoji">🧾</div><p>No expenses yet.</p></div>';
 
@@ -7430,11 +7432,28 @@ function removeTripPerson(personId) {
 function openAddExpenseModal() {
   if (!_activeTrip) return;
   if (!_activeTrip.people.length) { alert('Add at least one person first.'); return; }
+  _tripExpenseEditId = null;
   document.getElementById('tripExpenseModalTitle').textContent = 'Add Expense';
   document.getElementById('tripExpenseDesc').value = '';
   document.getElementById('tripExpenseAmount').value = '';
   _tripExpensePaidBy = _activeTrip.people[0].id;
   _tripExpenseSplit = _activeTrip.people.map(p => p.id);
+  renderTripExpenseModalChips();
+  document.getElementById('tripExpenseModal').classList.add('open');
+}
+function openEditExpenseModal(id) {
+  if (!_activeTrip) return;
+  const e = _activeTrip.expenses.find(x => x.id === id);
+  if (!e) return;
+  _tripExpenseEditId = id;
+  document.getElementById('tripExpenseModalTitle').textContent = 'Edit Expense';
+  document.getElementById('tripExpenseDesc').value = e.desc || '';
+  document.getElementById('tripExpenseAmount').value = e.amount;
+  // Fall back sensibly if the payer or a split member was since removed from the trip
+  _tripExpensePaidBy = _activeTrip.people.some(p => p.id === e.paidBy) ? e.paidBy : _activeTrip.people[0].id;
+  const validIds = new Set(_activeTrip.people.map(p => p.id));
+  _tripExpenseSplit = (e.splitAmong || []).filter(id => validIds.has(id));
+  if (!_tripExpenseSplit.length) _tripExpenseSplit = _activeTrip.people.map(p => p.id);
   renderTripExpenseModalChips();
   document.getElementById('tripExpenseModal').classList.add('open');
 }
@@ -7459,11 +7478,16 @@ function saveTripExpense() {
   if (!amount || amount <= 0) return alert('Please enter a valid amount.');
   if (!_tripExpensePaidBy) return alert('Please select who paid.');
   if (!_tripExpenseSplit.length) return alert('Please select at least one person to split among.');
-  _activeTrip.expenses.push({
-    id: uid(), desc: desc || 'Expense', amount,
-    paidBy: _tripExpensePaidBy, splitAmong: [..._tripExpenseSplit],
-    date: new Date().toISOString().slice(0,10), createdAt: Date.now(),
-  });
+  if (_tripExpenseEditId) {
+    const e = _activeTrip.expenses.find(x => x.id === _tripExpenseEditId);
+    if (e) Object.assign(e, { desc: desc || 'Expense', amount, paidBy: _tripExpensePaidBy, splitAmong: [..._tripExpenseSplit] });
+  } else {
+    _activeTrip.expenses.push({
+      id: uid(), desc: desc || 'Expense', amount,
+      paidBy: _tripExpensePaidBy, splitAmong: [..._tripExpenseSplit],
+      date: new Date().toISOString().slice(0,10), createdAt: Date.now(),
+    });
+  }
   persistActiveTrip();
   document.getElementById('tripExpenseModal').classList.remove('open');
   renderTripDetail();
