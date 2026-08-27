@@ -2103,10 +2103,6 @@
     </div>
     <div id="tripExpenseList"></div>
 
-    <div style="margin:18px 16px 0;">
-      <button onclick="if(confirm(&quot;Delete this whole trip? This can't be undone.&quot;))deleteTrip()" style="width:100%;background:rgba(239,68,68,0.1);border:1.5px solid rgba(239,68,68,0.35);color:var(--expense);padding:12px 20px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;">Delete Trip</button>
-    </div>
-
     <button class="purch-fab" onclick="openAddExpenseModal()">+</button>
   </div>
 </div>
@@ -5193,30 +5189,44 @@ function autoRecoverSubCategoriesOnce() {
     setTimeout(() => { try { recoverSubCategories(true); } catch(e) { console.error('Sub category recovery failed:', e); } }, 800);
   } catch(_) {}
 }
+// Which category groups are expanded — collapsed by default, JS-only (not persisted).
+const _subCatExpanded = new Set();
+function toggleSubCatGroup(id) {
+  if (_subCatExpanded.has(id)) _subCatExpanded.delete(id); else _subCatExpanded.add(id);
+  renderSubCatSettings();
+}
 function renderSubCatSettings() {
   const el = document.getElementById('subCatSettingsList');
   if (!el) return;
   // Iterate whatever categories actually have sub categories, not a fixed list,
   // so recovered entries under any category are still visible and deletable.
   const sc = state.subCategories || {};
-  const all = Object.keys(sc).flatMap(id =>
-    (Array.isArray(sc[id]) ? sc[id] : []).map(name => ({ id, name }))
-  );
-  if (!all.length) { el.innerHTML='<div class="empty-inner">No sub categories yet. Tap <b>+ Add</b>.</div>'; return; }
-  el.innerHTML = all.map(x => {
+  const ids = Object.keys(sc).filter(id => Array.isArray(sc[id]) && sc[id].length);
+  if (!ids.length) { el.innerHTML='<div class="empty-inner">No sub categories yet. Tap <b>+ Add</b>.</div>'; return; }
+  el.innerHTML = ids.map(id => {
     // Resolve from the real category list so any category works, not just the
     // six in SUB_CAT_LABELS — a missing entry there used to throw and blank the
     // whole Settings page.
-    const c = getAllCats().find(g => g.id === x.id) || { emoji: '🏷️', name: x.id };
+    const c = getAllCats().find(g => g.id === id) || { emoji: '🏷️', name: id };
+    const open = _subCatExpanded.has(id);
+    const items = sc[id].map(name => `
+      <div class="account-item">
+        <div class="account-icon" style="font-size:18px;visibility:hidden;">${c.emoji}</div>
+        <div class="account-info">
+          <div class="account-name">${escapeHtml(name)}</div>
+        </div>
+        <button onclick="deleteSubCat('${id}','${name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:4px 8px;">✕</button>
+      </div>`).join('');
     return `
-    <div class="account-item">
+    <div class="account-item" onclick="toggleSubCatGroup('${id}')" style="cursor:pointer;">
       <div class="account-icon" style="font-size:18px;">${c.emoji}</div>
       <div class="account-info">
-        <div class="account-name">${escapeHtml(x.name)}</div>
-        <div class="account-balance">${escapeHtml(c.name)}</div>
+        <div class="account-name">${escapeHtml(c.name)}</div>
+        <div class="account-balance">${sc[id].length} sub categor${sc[id].length===1?'y':'ies'}</div>
       </div>
-      <button onclick="deleteSubCat('${x.id}','${x.name.replace(/'/g,"\\'")}')" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:4px 8px;">✕</button>
-    </div>`; }).join('');
+      <div style="color:var(--text-secondary,#888);font-size:14px;transform:rotate(${open?90:0}deg);transition:transform .15s;">▶</div>
+    </div>
+    ${open ? items : ''}`; }).join('');
 }
 
 // ══════════════════ FAMILY MEMBERS ══════════════════
@@ -7344,6 +7354,7 @@ function saveTripDoc(trip) {
 }
 function openTripDetail(id) {
   _activeTripId = id;
+  try { localStorage.setItem('activeTripId', id); } catch(_) {}
   document.getElementById('tripListView').style.display = 'none';
   document.getElementById('tripDetailView').style.display = '';
   document.getElementById('tripDetailName').textContent = 'Loading…';
@@ -7373,6 +7384,7 @@ function openTripDetail(id) {
 }
 function closeTripDetail() {
   _activeTripId = null; _activeTrip = null;
+  try { localStorage.removeItem('activeTripId'); } catch(_) {}
   const lv = document.getElementById('tripListView'), dv = document.getElementById('tripDetailView');
   if (lv) lv.style.display = '';
   if (dv) dv.style.display = 'none';
@@ -7667,9 +7679,17 @@ document.addEventListener('visibilitychange', () => {
 (function restoreLastPage() {
   try {
     const last = localStorage.getItem('currentPage');
-    const validPages = ['home','add','txns','charts','settings','purchases','investments','parked'];
+    // Read this BEFORE navigate() — navigating to 'trips' runs closeTripDetail()
+    // as a side effect, which clears this same key, so reading it after would
+    // always see it already wiped.
+    const savedTripId = localStorage.getItem('activeTripId');
+    const validPages = ['home','add','txns','charts','settings','purchases','investments','parked','trips'];
     if (last && validPages.includes(last) && last !== 'home') {
       navigate(last);
+      // Trips has its own sub-screen (a specific trip's detail view) — restore
+      // that too, not just the list, so refreshing mid-trip doesn't drop you
+      // back a level.
+      if (last === 'trips' && savedTripId) openTripDetail(savedTripId);
     }
   } catch(_) {}
 })();
