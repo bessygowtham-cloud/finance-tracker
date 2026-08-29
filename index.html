@@ -2402,6 +2402,7 @@
       </div>
     </div>
 
+    <button id="parkedPartialBtn" style="display:none;width:100%;margin-bottom:8px;background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.3);color:var(--primary);padding:12px 20px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;" onclick="partialWithdrawParked()">↙️ Partial Withdraw</button>
     <div style="display:flex;gap:8px;align-items:stretch;">
       <button id="parkedDeleteBtn" style="display:none;background:rgba(239,68,68,0.1);border:1.5px solid rgba(239,68,68,0.35);color:var(--expense);padding:13px 20px;border-radius:14px;font-weight:700;font-size:15px;cursor:pointer;" onclick="deleteCurrentParked()">Delete</button>
       <button class="btn-primary" style="flex:1;margin-top:0;" onclick="saveParked()">Save</button>
@@ -6675,6 +6676,7 @@ function openParkedModal(id) {
   const p = id ? state.parkedMoney.find(x => x.id === id) : null;
   document.getElementById('parkedModalTitle').textContent = p ? 'Edit Entry' : 'Add Entry';
   document.getElementById('parkedDeleteBtn').style.display = p ? '' : 'none';
+  document.getElementById('parkedPartialBtn').style.display = (p && p.type === 'fd' && !isLoanClosed(p)) ? '' : 'none';
   _parkedSelectedType = p ? p.type : 'fd';
   _parkedPurity = (p && p.purity) ? p.purity : '22';
   document.getElementById('parkedName').value   = p ? p.name : '';
@@ -6756,6 +6758,38 @@ function deleteCurrentParked() {
   save();
   renderParked();
   closeParkedModal();
+}
+// Splits an open FD in two: the withdrawn portion becomes its own entry,
+// closed today, while the rest stays open under the original entry/id so its
+// history (start date, rate) keeps compounding uninterrupted.
+function partialWithdrawParked() {
+  if (!_parkedEditingId) return;
+  const p = state.parkedMoney.find(x => x.id === _parkedEditingId);
+  if (!p) return;
+  const currentAmt = p.amount || 0;
+  const input = prompt(`Partial withdrawal from "${p.name}"\nCurrent balance: ${fmt(currentAmt)}\n\nHow much are you withdrawing & closing?`);
+  if (input == null) return;
+  const amt = parseAmt(input);
+  if (!amt || amt <= 0) return alert('Please enter a valid amount.');
+  if (amt >= currentAmt) return alert('That\'s the full balance — set a Close Date instead to close the whole FD.');
+
+  p.amount = currentAmt - amt;
+  p.updatedAt = Date.now();
+
+  state.parkedMoney.push({
+    id: uid(), createdAt: Date.now(), updatedAt: Date.now(),
+    type: 'fd', name: p.name, amount: amt, date: p.date,
+    notes: p.notes || '', grams: 0, purity: '',
+    interestPct: p.interestPct || 0,
+    closeDate: new Date().toISOString().slice(0, 10),
+    interestUpfront: 0, compounding: p.compounding || 'simple',
+    receipt: '', receiptType: '', receiptName: '',
+  });
+
+  save();
+  renderParked();
+  alert(`${fmt(amt)} withdrawn and moved to Closed.\nRemaining FD balance: ${fmt(p.amount)}`);
+  openParkedModal(_parkedEditingId);
 }
 
 // Current live value of a parked gold entry (grams × live Chennai rate)
