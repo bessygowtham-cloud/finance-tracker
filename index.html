@@ -100,6 +100,8 @@
         radial-gradient(ellipse 600px 500px at 8%  88%, rgba(79,70,229,0.16)   0%, transparent 60%);
     }
 
+    body.dark #appLockScreen { background-color: #0a0a12; }
+
     /* ── GLASS BASE ── */
     .glass {
       background: var(--glass-light);
@@ -1598,6 +1600,17 @@
 </head>
 <body>
 
+<!-- APP LOCK SCREEN — shown before any personal data is loaded/rendered when
+     a device passcode is set (see App Lock in Settings). Hidden by default. -->
+<div id="appLockScreen" style="display:none;position:fixed;inset:0;z-index:9999;background-color:#fafbfc;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;">
+  <div style="font-size:40px;margin-bottom:10px;">🔒</div>
+  <div style="font-size:18px;font-weight:800;color:var(--text);">Enter Passcode</div>
+  <div style="font-size:13px;color:var(--muted);margin:4px 0 20px;">to open your finance tracker</div>
+  <input type="password" inputmode="numeric" maxlength="10" id="appLockInput" class="form-input" style="max-width:220px;text-align:center;letter-spacing:6px;font-size:20px;" placeholder="••••" autocomplete="off" />
+  <div id="appLockError" style="color:#ef4444;font-size:13px;margin-top:10px;min-height:16px;"></div>
+  <button class="btn-primary" style="max-width:220px;margin-top:10px;" onclick="attemptAppUnlock()">Unlock</button>
+</div>
+
 <!-- TOP NAV -->
 <div class="top-nav">
   <div>
@@ -1930,6 +1943,22 @@
       </div>
     </div>
     <div class="settings-card" id="remindersList" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-section-title">App Lock</div>
+    <div class="settings-card">
+      <div class="settings-row" onclick="setAppLockPin()" style="cursor:pointer;">
+        <span class="settings-icon">🔒</span>
+        <div><div class="settings-label" id="appLockRowLabel">Set Passcode</div><div class="settings-sub">Ask for a passcode every time this app is opened on this device</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
+      <div class="settings-row" id="appLockOffRow" onclick="removeAppLockPin()" style="cursor:pointer;display:none;">
+        <span class="settings-icon">🔓</span>
+        <div><div class="settings-label">Turn Off App Lock</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
+    </div>
   </div>
 
   <div class="settings-section">
@@ -7670,10 +7699,78 @@ function injectModalCloseButtons() {
   });
 }
 
+// ══════════════════ APP LOCK (local device passcode) ══════════════════
+// A soft deterrent, not real security: the PIN's hash lives only in this
+// browser's localStorage, never in the synced cloud blob, so it's per-device
+// and anyone with devtools access to this same device could clear it. Good
+// enough for "don't let someone picking up my phone casually see this app."
+async function hashPin(pin) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('ftlock_' + pin));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function isAppLockEnabled() { return !!localStorage.getItem('appLockHash'); }
+function renderAppLockSettings() {
+  const label = document.getElementById('appLockRowLabel');
+  const offRow = document.getElementById('appLockOffRow');
+  if (!label) return;
+  const on = isAppLockEnabled();
+  label.textContent = on ? 'Change Passcode' : 'Set Passcode';
+  if (offRow) offRow.style.display = on ? '' : 'none';
+}
+async function setAppLockPin() {
+  const pin = prompt('Set a passcode (4+ digits) to lock this app on this device:');
+  if (pin == null) return;
+  const clean = pin.trim();
+  if (clean.length < 4) return alert('Please use at least 4 digits.');
+  const confirmPin = prompt('Re-enter the passcode to confirm:');
+  if (confirmPin == null) return;
+  if (confirmPin.trim() !== clean) return alert('Passcodes did not match. Try again.');
+  localStorage.setItem('appLockHash', await hashPin(clean));
+  renderAppLockSettings();
+  alert('App Lock is on. You\'ll be asked for this passcode next time you open the app on this device.');
+}
+function removeAppLockPin() {
+  const pin = prompt('Enter your current passcode to turn off App Lock:');
+  if (pin == null) return;
+  hashPin(pin.trim()).then(h => {
+    if (h !== localStorage.getItem('appLockHash')) return alert('Incorrect passcode.');
+    localStorage.removeItem('appLockHash');
+    renderAppLockSettings();
+    alert('App Lock is off.');
+  });
+}
+function showAppLockScreen(onUnlock) {
+  const el = document.getElementById('appLockScreen');
+  el.style.display = 'flex';
+  const input = document.getElementById('appLockInput');
+  input.value = '';
+  document.getElementById('appLockError').textContent = '';
+  window._appLockOnUnlock = onUnlock;
+  input.onkeydown = (e) => { if (e.key === 'Enter') attemptAppUnlock(); };
+  setTimeout(() => input.focus(), 50);
+}
+async function attemptAppUnlock() {
+  const input = document.getElementById('appLockInput');
+  const pin = input.value.trim();
+  if (!pin) return;
+  const h = await hashPin(pin);
+  if (h === localStorage.getItem('appLockHash')) {
+    document.getElementById('appLockScreen').style.display = 'none';
+    const cb = window._appLockOnUnlock;
+    window._appLockOnUnlock = null;
+    if (cb) cb();
+  } else {
+    document.getElementById('appLockError').textContent = 'Wrong passcode, try again.';
+    input.value = '';
+    input.focus();
+  }
+}
+
 // ══════════════════ INIT ══════════════════
 // A ?trip=ID link takes over the whole page for a friend with no account and
-// no app — skip loading/rendering the normal app shell entirely in that case.
-if (!maybeShowSharedTrip()) {
+// no app — skip loading/rendering the normal app shell (and any lock screen)
+// entirely in that case, since they were never asked to know the owner's PIN.
+function bootApp() {
   load();
   loadInvestments();
   integrityCheckRestore();
@@ -7686,6 +7783,13 @@ if (!maybeShowSharedTrip()) {
   scheduleAllReminders();
   injectModalCloseButtons();
   initSettingsAccordion();
+  renderAppLockSettings();
+  restoreLastPage();
+  autoBackupCheck();
+}
+if (!maybeShowSharedTrip()) {
+  if (isAppLockEnabled()) showAppLockScreen(bootApp);
+  else bootApp();
 }
 
 // ── Robust page persistence: write on every navigate AND on unload/visibility change ──
@@ -7704,8 +7808,10 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// Restore last visited page (so refresh doesn't always send to home)
-(function restoreLastPage() {
+// Restore last visited page (so refresh doesn't always send to home).
+// Called from bootApp() — after load() — not standalone, since it renders
+// the saved page from `state`, which is still empty until load() has run.
+function restoreLastPage() {
   try {
     const last = localStorage.getItem('currentPage');
     // Read this BEFORE navigate() — navigating to 'trips' runs closeTripDetail()
@@ -7721,10 +7827,12 @@ document.addEventListener('visibilitychange', () => {
       if (last === 'trips' && savedTripId) openTripDetail(savedTripId);
     }
   } catch(_) {}
-})();
+}
 
 // ── AUTO-BACKUP: prompt to save a JSON backup file every 7 days when you open the app ──
-(function autoBackupCheck() {
+// Also called from bootApp() for the same reason as restoreLastPage above —
+// it reads live `state`, which isn't populated until load() has run.
+function autoBackupCheck() {
   try {
     const last = parseInt(localStorage.getItem('lastAutoBackup') || '0');
     const now = Date.now();
@@ -7744,7 +7852,7 @@ document.addEventListener('visibilitychange', () => {
       }
     }, 3000);
   } catch(_) {}
-})();
+}
 if (notifSupported() && Notification.permission === 'default') {
   // Soft prompt: show only when user opens settings (handled in openReminderModal too)
 }
