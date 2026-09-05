@@ -1601,14 +1601,26 @@
 <body>
 
 <!-- APP LOCK SCREEN — shown before any personal data is loaded/rendered when
-     a device passcode is set (see App Lock in Settings). Hidden by default. -->
+     a device passcode is set (see App Lock in Settings). Hidden by default.
+     When biometrics are also enabled, this opens in "biometric" mode (a
+     fingerprint button, passcode entry tucked behind "Use Passcode Instead")
+     and falls back to passcode mode automatically if biometrics fail/cancel. -->
 <div id="appLockScreen" style="display:none;position:fixed;inset:0;z-index:9999;background-color:#fafbfc;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;">
-  <div style="font-size:40px;margin-bottom:10px;">🔒</div>
-  <div style="font-size:18px;font-weight:800;color:var(--text);">Enter Passcode</div>
-  <div style="font-size:13px;color:var(--muted);margin:4px 0 20px;">to open your finance tracker</div>
-  <input type="password" inputmode="numeric" maxlength="10" id="appLockInput" class="form-input" style="max-width:220px;text-align:center;letter-spacing:6px;font-size:20px;" placeholder="••••" autocomplete="off" />
-  <div id="appLockError" style="color:#ef4444;font-size:13px;margin-top:10px;min-height:16px;"></div>
-  <button class="btn-primary" style="max-width:220px;margin-top:10px;" onclick="attemptAppUnlock()">Unlock</button>
+  <div id="appLockBioView" style="display:none;flex-direction:column;align-items:center;">
+    <button onclick="tryBiometricUnlock(true)" style="background:none;border:none;cursor:pointer;font-size:56px;line-height:1;margin-bottom:6px;">👆</button>
+    <div style="font-size:18px;font-weight:800;color:var(--text);">Unlock Finance Tracker</div>
+    <div id="appLockBioStatus" style="font-size:13px;color:var(--muted);margin:4px 0 20px;">Tap the fingerprint to continue</div>
+    <button style="background:none;border:none;color:var(--primary);font-weight:700;font-size:13px;cursor:pointer;padding:8px;" onclick="showAppLockPasscodeView()">Use Passcode Instead</button>
+  </div>
+  <div id="appLockPinView" style="display:flex;flex-direction:column;align-items:center;">
+    <div style="font-size:40px;margin-bottom:10px;">🔒</div>
+    <div style="font-size:18px;font-weight:800;color:var(--text);">Enter Passcode</div>
+    <div style="font-size:13px;color:var(--muted);margin:4px 0 20px;">to open your finance tracker</div>
+    <input type="password" inputmode="numeric" maxlength="10" id="appLockInput" class="form-input" style="max-width:220px;text-align:center;letter-spacing:6px;font-size:20px;" placeholder="••••" autocomplete="off" />
+    <div id="appLockError" style="color:#ef4444;font-size:13px;margin-top:10px;min-height:16px;"></div>
+    <button class="btn-primary" style="max-width:220px;margin-top:10px;" onclick="attemptAppUnlock()">Unlock</button>
+    <button id="appLockUseBioBtn" style="display:none;background:none;border:none;color:var(--primary);font-weight:700;font-size:13px;cursor:pointer;padding:12px 8px 0;" onclick="showAppLockBioView()">Use Biometrics Instead</button>
+  </div>
 </div>
 
 <!-- TOP NAV -->
@@ -1956,6 +1968,11 @@
       <div class="settings-row" id="appLockOffRow" onclick="removeAppLockPin()" style="cursor:pointer;display:none;">
         <span class="settings-icon">🔓</span>
         <div><div class="settings-label">Turn Off App Lock</div></div>
+        <span style="color:var(--muted);">›</span>
+      </div>
+      <div class="settings-row" id="appLockBioRow" onclick="toggleBiometricUnlock()" style="cursor:pointer;display:none;">
+        <span class="settings-icon">👆</span>
+        <div><div class="settings-label" id="appLockBioLabel">Enable Biometric Unlock</div><div class="settings-sub">Use Face ID / Touch ID / fingerprint instead of typing the passcode — the passcode stays as backup, just tucked behind "Use Passcode Instead"</div></div>
         <span style="color:var(--muted);">›</span>
       </div>
     </div>
@@ -7743,13 +7760,30 @@ async function hashPin(pin) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 function isAppLockEnabled() { return !!localStorage.getItem('appLockHash'); }
+function isBiometricEnabled() { return !!localStorage.getItem('appLockBioCredId'); }
+async function isBiometricAvailable() {
+  try {
+    return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+  } catch (_) { return false; }
+}
 function renderAppLockSettings() {
   const label = document.getElementById('appLockRowLabel');
   const offRow = document.getElementById('appLockOffRow');
+  const bioRow = document.getElementById('appLockBioRow');
+  const bioLabel = document.getElementById('appLockBioLabel');
   if (!label) return;
   const on = isAppLockEnabled();
   label.textContent = on ? 'Change Passcode' : 'Set Passcode';
   if (offRow) offRow.style.display = on ? '' : 'none';
+  if (bioLabel) bioLabel.textContent = isBiometricEnabled() ? 'Turn Off Biometric Unlock' : 'Enable Biometric Unlock';
+  // Biometric only makes sense once a passcode backup exists, and only on a
+  // device/browser that actually has a platform authenticator (Face ID,
+  // Touch ID, Android fingerprint) — hide the row otherwise rather than
+  // offering something that will just fail.
+  if (bioRow) {
+    if (!on) { bioRow.style.display = 'none'; return; }
+    isBiometricAvailable().then(avail => { bioRow.style.display = avail ? '' : 'none'; });
+  }
 }
 async function setAppLockPin() {
   const pin = prompt('Set a passcode (4+ digits) to lock this app on this device:');
@@ -7769,9 +7803,85 @@ function removeAppLockPin() {
   hashPin(pin.trim()).then(h => {
     if (h !== localStorage.getItem('appLockHash')) return alert('Incorrect passcode.');
     localStorage.removeItem('appLockHash');
+    // Biometric unlock is only a shortcut on top of the passcode — without a
+    // passcode there's nothing to fall back to, so it must go too.
+    localStorage.removeItem('appLockBioCredId');
     renderAppLockSettings();
     alert('App Lock is off.');
   });
+}
+function toggleBiometricUnlock() {
+  if (isBiometricEnabled()) {
+    if (!confirm('Turn off biometric unlock? You\'ll go back to typing your passcode.')) return;
+    localStorage.removeItem('appLockBioCredId');
+    renderAppLockSettings();
+    return;
+  }
+  enableBiometricUnlock();
+}
+async function enableBiometricUnlock() {
+  try {
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: 'Finance Tracker' },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'device-owner', displayName: 'Device Owner' },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000,
+      }
+    });
+    const idB64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+    localStorage.setItem('appLockBioCredId', idB64);
+    renderAppLockSettings();
+    alert('Biometric unlock is on. Your passcode still works any time as backup (look for "Use Passcode Instead" on the lock screen).');
+  } catch (e) {
+    console.error('Biometric setup failed:', e);
+    alert('Could not set up biometric unlock on this device — your passcode still works as normal.');
+  }
+}
+// Attempts a platform-authenticator (Face ID/Touch ID/fingerprint) check.
+// There's no server here to verify the signature against — resolving without
+// throwing just means THIS device's OS matched the enrolled biometric for
+// the credential it itself created, which is exactly what a local device
+// gate needs. `interactive` distinguishes an explicit tap (show an error on
+// failure) from the automatic attempt when the lock screen first appears
+// (fail silently into the passcode view instead of alarming the user).
+async function tryBiometricUnlock(interactive) {
+  const idB64 = localStorage.getItem('appLockBioCredId');
+  if (!idB64) return;
+  const statusEl = document.getElementById('appLockBioStatus');
+  try {
+    if (statusEl) statusEl.textContent = 'Waiting for Face ID / Touch ID / fingerprint…';
+    const rawId = Uint8Array.from(atob(idB64), c => c.charCodeAt(0));
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: rawId, type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000,
+      }
+    });
+    document.getElementById('appLockScreen').style.display = 'none';
+    const cb = window._appLockOnUnlock;
+    window._appLockOnUnlock = null;
+    if (cb) cb();
+  } catch (e) {
+    console.warn('Biometric unlock failed/cancelled:', e);
+    if (statusEl) statusEl.textContent = 'Tap the fingerprint to continue';
+    if (interactive) showAppLockPasscodeView();
+  }
+}
+function showAppLockPasscodeView() {
+  document.getElementById('appLockBioView').style.display = 'none';
+  document.getElementById('appLockPinView').style.display = 'flex';
+  const input = document.getElementById('appLockInput');
+  setTimeout(() => input.focus(), 50);
+}
+function showAppLockBioView() {
+  document.getElementById('appLockPinView').style.display = 'none';
+  document.getElementById('appLockBioView').style.display = 'flex';
+  tryBiometricUnlock(false);
 }
 function showAppLockScreen(onUnlock) {
   const el = document.getElementById('appLockScreen');
@@ -7781,7 +7891,18 @@ function showAppLockScreen(onUnlock) {
   document.getElementById('appLockError').textContent = '';
   window._appLockOnUnlock = onUnlock;
   input.onkeydown = (e) => { if (e.key === 'Enter') attemptAppUnlock(); };
-  setTimeout(() => input.focus(), 50);
+
+  if (isBiometricEnabled()) {
+    document.getElementById('appLockPinView').style.display = 'none';
+    document.getElementById('appLockBioView').style.display = 'flex';
+    document.getElementById('appLockUseBioBtn').style.display = '';
+    tryBiometricUnlock(false); // auto-prompt immediately, like a bank app
+  } else {
+    document.getElementById('appLockBioView').style.display = 'none';
+    document.getElementById('appLockPinView').style.display = 'flex';
+    document.getElementById('appLockUseBioBtn').style.display = 'none';
+    setTimeout(() => input.focus(), 50);
+  }
 }
 async function attemptAppUnlock() {
   const input = document.getElementById('appLockInput');
