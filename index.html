@@ -7862,10 +7862,7 @@ async function tryBiometricUnlock(interactive) {
         timeout: 60000,
       }
     });
-    document.getElementById('appLockScreen').style.display = 'none';
-    const cb = window._appLockOnUnlock;
-    window._appLockOnUnlock = null;
-    if (cb) cb();
+    markAppUnlocked();
   } catch (e) {
     console.warn('Biometric unlock failed/cancelled:', e);
     if (statusEl) statusEl.textContent = 'Tap the fingerprint to continue';
@@ -7910,15 +7907,22 @@ async function attemptAppUnlock() {
   if (!pin) return;
   const h = await hashPin(pin);
   if (h === localStorage.getItem('appLockHash')) {
-    document.getElementById('appLockScreen').style.display = 'none';
-    const cb = window._appLockOnUnlock;
-    window._appLockOnUnlock = null;
-    if (cb) cb();
+    markAppUnlocked();
   } else {
     document.getElementById('appLockError').textContent = 'Wrong passcode, try again.';
     input.value = '';
     input.focus();
   }
+}
+// Shared by both unlock paths (passcode + biometric): hides the lock screen,
+// remembers this tab/session is unlocked (see the sessionStorage check at
+// boot — this is what stops a refresh from re-prompting), then resumes boot.
+function markAppUnlocked() {
+  try { sessionStorage.setItem('appUnlockedThisSession', '1'); } catch (_) {}
+  document.getElementById('appLockScreen').style.display = 'none';
+  const cb = window._appLockOnUnlock;
+  window._appLockOnUnlock = null;
+  if (cb) cb();
 }
 
 // ══════════════════ INIT ══════════════════
@@ -7943,8 +7947,15 @@ function bootApp() {
   autoBackupCheck();
 }
 if (!maybeShowSharedTrip()) {
-  if (isAppLockEnabled()) showAppLockScreen(bootApp);
-  else bootApp();
+  // sessionStorage survives a refresh/reload within the same tab/app session
+  // but is gone the next time the app is freshly opened (new tab, or the PWA
+  // relaunched after being fully closed) — exactly the "don't re-lock on
+  // every refresh, only on a real fresh open" behavior asked for.
+  if (isAppLockEnabled() && !sessionStorage.getItem('appUnlockedThisSession')) {
+    showAppLockScreen(bootApp);
+  } else {
+    bootApp();
+  }
 }
 
 // ── Robust page persistence: write on every navigate AND on unload/visibility change ──
