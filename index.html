@@ -2217,6 +2217,9 @@
     <div class="label">📊 Portfolio · Current Value</div>
     <div class="amount" id="invTotalCurrent">₹0</div>
     <div class="sub" id="invTotalPL">+₹0 (+0%)</div>
+    <div onclick="openDiversificationModal('invest')" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.25);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+      <span>📊 Diversification Details</span><span>›</span>
+    </div>
   </div>
 
   <!-- Hidden – kept for compatibility with existing code paths that update them -->
@@ -2315,6 +2318,9 @@
         <div id="parkedClosedAmt" style="font-size:22px;font-weight:800;letter-spacing:-.5px;line-height:1.15;">₹0</div>
         <div id="parkedClosedProfit" style="font-size:11px;opacity:.95;font-weight:700;margin-top:1px;">Earned +₹0</div>
       </div>
+    </div>
+    <div onclick="openDiversificationModal('parked')" style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.25);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+      <span>📊 Diversification Details</span><span>›</span>
     </div>
   </div>
 
@@ -2433,6 +2439,15 @@
     <div class="modal-handle"></div>
     <div class="modal-title">Receipt</div>
     <div id="receiptViewerContent" style="text-align:center;"></div>
+  </div>
+</div>
+
+<!-- Diversification Details modal (shared by Investments and Parked Money) -->
+<div class="modal-overlay" id="diversificationModal" onclick="closeDiversificationModal(event)">
+  <div class="modal-sheet" style="max-height:85vh;max-height:85dvh;">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="diversificationModalTitle">Diversification Details</div>
+    <div id="diversificationContent"></div>
   </div>
 </div>
 
@@ -6909,6 +6924,81 @@ function parkedMaturityValue(p) {
   const maturityAmount = (p.amount || 0) + interest;
   const pct = (p.amount || 0) > 0 ? (interest / p.amount) * 100 : 0;
   return { interest, years, maturityAmount, pct };
+}
+
+// ══════════════════ DIVERSIFICATION DETAILS ══════════════════
+// Shared by Investments and Parked Money: how money currently sits across
+// instrument types (by current value, not original invested amount — that's
+// what "how much of my portfolio is in X" actually means), plus profit per
+// type. Parked Money only counts open entries — a closed FD isn't "allocated"
+// anywhere anymore, it's just cash again.
+function computeDiversification(items, typeList, valueFn) {
+  const byType = typeList.map(t => {
+    let invested = 0, current = 0, count = 0;
+    items.filter(x => x.type === t.id).forEach(x => {
+      const v = valueFn(x);
+      invested += v.invested;
+      current += v.current;
+      count++;
+    });
+    return { ...t, invested, current, profit: current - invested, count };
+  }).filter(t => t.count > 0);
+  const totalCurrent = byType.reduce((s, t) => s + t.current, 0);
+  byType.forEach(t => { t.pct = totalCurrent > 0 ? (t.current / totalCurrent) * 100 : 0; });
+  byType.sort((a, b) => b.current - a.current);
+  return { byType, totalCurrent };
+}
+function computeParkedDiversification() {
+  const items = (state.parkedMoney || []).filter(p => !isLoanClosed(p));
+  return computeDiversification(items, PARKED_TYPES, p => {
+    const invested = p.amount || 0;
+    if (p.type === 'gold' && p.grams && _goldRateCache) {
+      return { invested, current: parkedGoldCurrent(p) || invested };
+    }
+    const lp = parkedInterestProfit(p);
+    return { invested, current: lp ? lp.currentValue : invested };
+  });
+}
+function computeInvestDiversification() {
+  return computeDiversification(investments || [], INV_TYPES, i => ({
+    invested: i.invested || 0,
+    current: (i.type === 'gold' && i.grams && _goldRateCache) ? liveGoldValue(i) : (i.currentValue || 0),
+  }));
+}
+function openDiversificationModal(source) {
+  const { byType, totalCurrent } = source === 'invest' ? computeInvestDiversification() : computeParkedDiversification();
+  const content = document.getElementById('diversificationContent');
+  if (!byType.length) {
+    content.innerHTML = '<div class="empty-inner">No entries yet.</div>';
+  } else {
+    content.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Based on current value of ${fmt(totalCurrent)}${source === 'parked' ? ' currently parked (open entries only)' : ''}.</div>
+      ${byType.map(t => {
+        const profitClr = t.profit >= 0 ? '#10b981' : 'var(--expense)';
+        const profitSign = t.profit >= 0 ? '+' : '-';
+        const profitPct = t.invested > 0 ? Math.round((t.profit / t.invested) * 100) : 0;
+        return `
+        <div style="margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:14px;font-weight:700;color:var(--text);">${t.emoji} ${t.name}</span>
+            <span style="font-size:14px;font-weight:800;color:var(--text);">${Math.round(t.pct)}%</span>
+          </div>
+          <div style="height:8px;border-radius:99px;background:var(--input-bg);border:1px solid var(--input-border);overflow:hidden;margin-bottom:6px;">
+            <div style="height:100%;width:${Math.min(100, t.pct)}%;background:${t.color};border-radius:99px;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);">
+            <span>${fmt(t.current)}</span>
+            <span style="color:${profitClr};font-weight:700;">${profitSign}${fmt(Math.abs(t.profit))} (${profitSign}${Math.abs(profitPct)}%)</span>
+          </div>
+        </div>`;
+      }).join('')}
+    `;
+  }
+  document.getElementById('diversificationModal').classList.add('open');
+}
+function closeDiversificationModal(e) {
+  if (!e || e.target === document.getElementById('diversificationModal'))
+    document.getElementById('diversificationModal').classList.remove('open');
 }
 
 // Restore previous tab + loan-filter state from localStorage so refresh keeps the same view
