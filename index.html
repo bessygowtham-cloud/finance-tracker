@@ -2324,6 +2324,8 @@
     </div>
   </div>
 
+  <div id="parkedGrowthChart"></div>
+
   <div id="parkedSections"></div>
 
   <button class="parked-fab" onclick="openParkedModal()">+</button>
@@ -6965,6 +6967,33 @@ function computeInvestDiversification() {
     current: (i.type === 'gold' && i.grams && _goldRateCache) ? liveGoldValue(i) : (i.currentValue || 0),
   }));
 }
+// Small bar chart on the Parked Money page: % growth (profit ÷ invested) per
+// instrument type, open entries only — same basis as the "Currently Parked" card.
+function renderParkedGrowthChart() {
+  const el = document.getElementById('parkedGrowthChart');
+  if (!el) return;
+  const rows = computeParkedDiversification().byType.filter(t => t.invested > 0);
+  if (!rows.length) { el.innerHTML = ''; return; }
+  const withPct = rows.map(t => ({ ...t, growth: (t.profit / t.invested) * 100 }));
+  const maxAbs = Math.max(...withPct.map(t => Math.abs(t.growth)), 1);
+  el.innerHTML = `
+    <div style="margin:14px 16px 0;padding:14px 16px;border-radius:18px;background:var(--modal-bg);border:1px solid var(--border);">
+      <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px;">📈 Growth by investment</div>
+      ${withPct.map(t => {
+        const up = t.growth >= 0;
+        const clr = up ? '#10b981' : 'var(--expense)';
+        const w = Math.max(2, (Math.abs(t.growth) / maxAbs) * 100);
+        return `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="flex:0 0 92px;font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.emoji} ${t.name}</span>
+          <div style="flex:1;height:10px;border-radius:99px;background:var(--input-bg);overflow:hidden;">
+            <div style="height:100%;width:${w}%;background:${clr};border-radius:99px;"></div>
+          </div>
+          <span style="flex:0 0 48px;text-align:right;font-size:11px;font-weight:800;color:${clr};">${up ? '+' : '-'}${Math.abs(t.growth).toFixed(1)}%</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
 function openDiversificationModal(source) {
   const { byType, totalCurrent } = source === 'invest' ? computeInvestDiversification() : computeParkedDiversification();
   const content = document.getElementById('diversificationContent');
@@ -7067,6 +7096,8 @@ function renderParked() {
   if (closedProfEl) closedProfEl.textContent = closedTotal > 0
     ? `Earned +${fmt(Math.abs(closedProfit))}`
     : 'No closed yet';
+
+  renderParkedGrowthChart();
 
   // Gold portfolio summary (invested vs current vs P/L)
   const goldItems = (state.parkedMoney || []).filter(p => p.type==='gold' && p.grams);
