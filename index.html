@@ -2752,10 +2752,14 @@
       <div class="acc-chips-row" id="editAccountChips"></div>
     </div>
 
-    <!-- Conditional: Credit Card Due Date -->
+    <!-- Conditional: Credit Card (same card chips as the Add page; the old
+         due-date input stays hidden so existing saved values are preserved) -->
     <div class="conditional-field" id="editCreditFields">
-      <div class="form-group">
-        <label class="form-label">Credit Card Due Date</label>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Credit Card</label>
+        <div class="sub-chips-wrap" id="editCreditCardChips"></div>
+      </div>
+      <div class="form-group" style="display:none;">
         <input type="date" class="form-input" id="editCreditDueDate" />
       </div>
     </div>
@@ -3913,7 +3917,7 @@ function openEditTxn(id) {
   document.getElementById('editAmount').value = Number(t.amount).toLocaleString('en-IN');
   document.getElementById('editNote').value   = t.note || '';
   document.getElementById('editDate').value   = t.date;
-  if (t.creditDueDate) document.getElementById('editCreditDueDate').value = t.creditDueDate;
+  document.getElementById('editCreditDueDate').value = t.creditDueDate || '';
 
   // Type toggle
   setEditType(t.type, true);
@@ -3922,7 +3926,9 @@ function openEditTxn(id) {
   renderEditAccountChips();
 
   // Conditional fields
-  document.getElementById('editCreditFields').classList.toggle('visible', editState.accountId==='credit');
+  const creditVis = editState.accountId==='credit';
+  document.getElementById('editCreditFields').classList.toggle('visible', creditVis);
+  if (creditVis) renderEditCreditCardChips();
   const bankVis = editState.accountId==='bank';
   document.getElementById('editBankFields').classList.toggle('visible', bankVis);
   if (bankVis) renderEditBankChips();
@@ -3962,13 +3968,41 @@ function renderEditAccountChips() {
 }
 
 function selectEditAccount(id) {
+  // A bank name and a credit card name share one field, so switching account
+  // type must clear it (same as the Add page) or a stale value would carry over.
+  if (id !== editState.accountId) editState.selectedBank = null;
   editState.accountId = id;
   renderEditAccountChips();
   document.getElementById('editCreditFields').classList.toggle('visible', id==='credit');
+  if (id==='credit') renderEditCreditCardChips();
   const bankVis = id==='bank';
   document.getElementById('editBankFields').classList.toggle('visible', bankVis);
   if (bankVis) renderEditBankChips();
   else { document.getElementById('editBankFields').classList.remove('visible'); }
+}
+
+function renderEditCreditCardChips() {
+  const wrap = document.getElementById('editCreditCardChips');
+  if (!wrap) return;
+  wrap.innerHTML = (state.creditCards||[]).map(c =>
+    `<button class="sub-chip ${editState.selectedBank===c?'selected':''}" onclick="selectEditCreditCard('${c.replace(/'/g,"\\'")}')">
+      ${c}
+    </button>`
+  ).join('') +
+  `<button class="sub-chip chip-add" onclick="addEditCustomCreditCard()">+ Add Card</button>`;
+}
+function selectEditCreditCard(name) {
+  editState.selectedBank = editState.selectedBank===name ? null : name;
+  renderEditCreditCardChips();
+}
+function addEditCustomCreditCard() {
+  const name = prompt('Enter credit card name (e.g., Axis, HDFC, SBI):');
+  if (!name||!name.trim()) return;
+  const t = name.trim();
+  if (!state.creditCards) state.creditCards = [];
+  if (!state.creditCards.includes(t)) { state.creditCards.push(t); save(); }
+  editState.selectedBank = t;
+  renderEditCreditCardChips();
 }
 
 function renderEditBankChips() {
