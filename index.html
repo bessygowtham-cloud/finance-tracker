@@ -3050,9 +3050,24 @@ function startCloudSync(uid) {
       const l = Array.isArray(localVal) ? localVal : [];
       const byId = new Map();
       let extraFromLocal = false;
+      // A cloud copy may have its photo stripped for size; keep the photo we hold locally
+      const keepImg = (win, other) => {
+        if (!win._imgStripped || !other) return win;
+        const out = {...win};
+        if (other.billData) out.billData = other.billData;
+        if (other.receipt) out.receipt = other.receipt;
+        if ((out.billData || out.receipt)) delete out._imgStripped;
+        return out;
+      };
       const consider = (it, fromLocal) => {
         if (!it || it.id == null || dead.has(it.id)) return;
         const prev = byId.get(it.id);
+        if (prev && (prev._imgStripped || it._imgStripped)) {
+          const newer = (it.updatedAt || 0) > (prev.updatedAt || 0) ? it : prev;
+          const older = newer === it ? prev : it;
+          byId.set(it.id, keepImg(newer, older));
+          return;
+        }
         if (!prev) { byId.set(it.id, it); if (fromLocal) extraFromLocal = true; return; }
         // Present on both sides: keep whichever was edited most recently.
         // Without this the cloud copy always won, so a snapshot carrying
@@ -3141,7 +3156,7 @@ function flushCloudSave() {
 function doCloudSave() {
   {
     _cloudSavePending = false;
-    const blob = JSON.stringify({
+    let blob = JSON.stringify({
       transactions: state.transactions,
       allocations:  state.allocations,
       recurring:    state.recurring,
@@ -3162,7 +3177,16 @@ function doCloudSave() {
     // A Firestore document is capped at ~1 MiB. Bill/receipt images are stored
     // inline as base64, so a large library can push past it — surface that
     // clearly instead of letting the write fail with an opaque backend error.
-    const bytes = new Blob([blob]).size;
+    let bytes = new Blob([blob]).size;
+    if (bytes > 950000) {
+      // Too big: sync everything EXCEPT the photos so entries still reach the other
+      // device. Photos stay on the device that has them (merge below restores them).
+      const slim = JSON.parse(blob);
+      (slim.purchases||[]).forEach(p => { if (p.billData && String(p.billData).startsWith('data:')) { p.billData = ''; p._imgStripped = true; } });
+      (slim.parkedMoney||[]).forEach(k => { if (k.receipt && String(k.receipt).startsWith('data:')) { k.receipt = ''; k._imgStripped = true; } });
+      blob = JSON.stringify(slim);
+      bytes = new Blob([blob]).size;
+    }
     if (bytes > 950000) {
       _cloudSyncError = `Data too large to sync (${(bytes/1048576).toFixed(2)} MB of 1 MB). Try "Compress Images" below, or remove some bill/receipt photos.`;
       renderBackupStatus();
