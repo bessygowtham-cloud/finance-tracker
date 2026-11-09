@@ -2984,6 +2984,7 @@ function readCloudDoc(raw) {
 function startCloudSync(uid) {
   if (unsubscribeSync) unsubscribeSync();
   unsubscribeSync = db.collection('users').doc(uid).onSnapshot(doc => {
+   try {
     if (!doc.exists) {
       // First sign-in — push existing local data to cloud
       saveToCloud();
@@ -3110,6 +3111,12 @@ function startCloudSync(uid) {
     _cloudSyncError = null;
     isSyncingFromCloud = false;
     renderBackupStatus();
+   } catch (e) {
+    // If merging throws, never leave the sync lock on — that silently blocks every later upload
+    console.error('Cloud merge error:', e);
+    _cloudSyncError = 'Merge failed: ' + (e.message || e);
+    renderBackupStatus();
+   } finally { isSyncingFromCloud = false; }
   }, err => {
     console.error('Sync error:', err);
     _cloudSyncError = err.message || String(err);
@@ -3117,10 +3124,23 @@ function startCloudSync(uid) {
   });
 }
 
+let _cloudSavePending = false;
 function saveToCloud() {
   if (!currentUser || isSyncingFromCloud) return;
   clearTimeout(cloudSaveTimer);
-  cloudSaveTimer = setTimeout(() => {
+  _cloudSavePending = true;
+  cloudSaveTimer = setTimeout(doCloudSave, 600);
+}
+// Push immediately if a debounced save is still waiting — used when the app is
+// being hidden/closed so a just-added entry isn't lost inside the 600ms window.
+function flushCloudSave() {
+  if (!_cloudSavePending || !currentUser) return;
+  clearTimeout(cloudSaveTimer);
+  doCloudSave();
+}
+function doCloudSave() {
+  {
+    _cloudSavePending = false;
     const blob = JSON.stringify({
       transactions: state.transactions,
       allocations:  state.allocations,
@@ -3153,9 +3173,34 @@ function saveToCloud() {
       schema: CLOUD_SCHEMA,
       updatedAt: Date.now(),
     }).then(() => { _cloudSyncError = null; renderBackupStatus(); })
-      .catch(e => { console.error('Cloud save error:', e); _cloudSyncError = e.message || String(e); renderBackupStatus(); });
-  }, 600);
+      .catch(e => {
+        console.error('Cloud save error:', e);
+        _cloudSyncError = e.message || String(e); renderBackupStatus();
+        // A failed push used to be dropped for good — retry so the entry still reaches the other device
+        _cloudSavePending = true;
+        clearTimeout(cloudSaveTimer);
+        cloudSaveTimer = setTimeout(doCloudSave, 8000);
+      });
+  }
 }
+
+// Mobile browsers pause the live listener while the app is in the background, so
+// on every return to the app (and when the network comes back) push anything
+// pending and re-subscribe to pull the latest from the other device.
+let _lastResync = 0;
+function resyncCloud() {
+  if (!currentUser || Date.now() - _lastResync < 2000) return;
+  _lastResync = Date.now();
+  flushCloudSave();
+  startCloudSync(currentUser.uid);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushCloudSave();
+  else resyncCloud();
+});
+window.addEventListener('pagehide', flushCloudSave);
+window.addEventListener('online', resyncCloud);
+window.addEventListener('focus', resyncCloud);
 
 function renderSyncCard() {
   const btn = document.getElementById('syncHeaderBtn');
